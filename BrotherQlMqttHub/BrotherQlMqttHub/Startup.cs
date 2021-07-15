@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using BrotherQlMqttHub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
@@ -27,6 +28,9 @@ namespace BrotherQlMqttHub
         {
             services.AddRazorPages();
             services.AddServerSideBlazor();
+
+            services.AddSingleton(_ => new PrinterMonitor(Configuration.GetSection("Mqtt")));
+            services.AddHostedService(s => s.GetService<PrinterMonitor>());
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

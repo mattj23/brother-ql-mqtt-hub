@@ -8,4 +8,8 @@
       <Folder Include="Data" />
     </ItemGroup>
 
+    <ItemGroup>
+      <PackageReference Include="MQTTnet" Version="3.0.16" />
+    </ItemGroup>
+
 </Project>
