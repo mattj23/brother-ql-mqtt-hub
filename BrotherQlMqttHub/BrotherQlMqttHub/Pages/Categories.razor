@@ -1,0 +1,21 @@
+﻿@page "/categories"
+@using BrotherQlMqttHub.Data
+@using BrotherQlMqttHub.Components 
+
+<h3>Categories</h3>
+
+<CategoryEditor Category="example" />
+
+@code {
+    protected TagCategory example;
+
+    protected override Task OnInitializedAsync()
+    {
+        example = new TagCategory {Description = "Color of label paper", ShortDescription = "Paper Color"};
+        example.Tags = new List<Tag>();
+        example.Tags.Add(new Tag() {Name = "Orange"});
+        example.Tags.Add(new Tag() {Name = "Blue"});
+        return base.OnInitializedAsync();
+    }
+
+}
