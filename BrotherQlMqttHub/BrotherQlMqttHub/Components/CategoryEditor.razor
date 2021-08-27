@@ -2,6 +2,8 @@
 @using BrotherQlMqttHub.Data
 @using BrotherQlMqttHub.Components
 @using System.Diagnostics
+@using Microsoft.EntityFrameworkCore.Query.Internal
+@inject DialogService dialogService
 @inject IServiceScopeFactory scopeFactory
 
 <RadzenCard>
@@ -9,22 +11,36 @@
 <table class="table table-borderless text-nowrap">
     <tr>
         <td class="align-middle font-weight-bold">Name</td>
-        <td class="w-100 align-middle"><DisplayOrEdit Text="@Category.ShortDescription"
-                           IsEditable="true" /></td>
+        <td class="w-100 align-middle">
+
+            <DisplayOrEdit Text="@Category.ShortDescription"
+                           OnUpdateValue="UpdateName"
+                           IsEditable="true" />
+        </td>
     </tr>
 
     <tr>
         <td class="align-middle font-weight-bold">Description</td>
-        <td class="align-middle"><DisplayOrEdit Text="@Category.Description"
-                           IsEditable="true"/></td>
+        <td class="align-middle">
+
+            <DisplayOrEdit Text="@Category.Description"
+                           OnUpdateValue="UpdateDescription"
+                           IsEditable="true"/>
+        </td>
     </tr>
 
     <tr>
-        <td class="align-top font-weight-bold">Tags</td>
+        <td class="align-top font-weight-bold">
+            <span>Tags</span>
+            <RadzenButton Icon="add"
+                          Click="AddNewTag"></RadzenButton>
+        </td>
         <td class="align-top">
             @foreach (var tag in Category.Tags)
             {
-                <TagDisplay Tag="@tag" />
+                <TagDisplay Tag="@tag" 
+                            OnUpdateTag="UpdateTag"
+                            OnDeleteTag="DeleteTag" />
             }
         </td>
     </tr>
@@ -39,6 +55,37 @@
     private async Task DeleteTag(int tagId)
     {
         Debug.WriteLine($"Delete {tagId}");
+    }
+
+    private async void DeleteTag(Tag tag)
+    {
+        var result = await dialogService.Confirm($"Are you sure you want to remove the tag '{tag.Name}' from the category '{Category.ShortDescription}'?", "Confirm Delete Tag");
+        if (result == true)
+        {
+            Category.Tags.Remove(tag);
+            StateHasChanged();
+        }
+    }
+
+    private async Task UpdateName(string newName)
+    {
 
     }
+
+    private async Task UpdateDescription(string newDescription)
+    {
+
+    }
+
+    private async void UpdateTag(Tag tag)
+    {
+
+    }
+
+    private async void AddNewTag()
+    {
+        Category.Tags.Add(new Tag {Name = "New Tag"});
+        StateHasChanged();
+    }
+
 }

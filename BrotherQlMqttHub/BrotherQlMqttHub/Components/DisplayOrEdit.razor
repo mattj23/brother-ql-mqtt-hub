@@ -8,8 +8,8 @@
 else
 {
     <RadzenTextBox @bind-Value="@NewText" />
-    <RadzenButton Icon="check_circle" Click="@UpdateValue">Save</RadzenButton>
-    <RadzenButton Icon="cancel" Click="@(() => IsEditing = false)">Cancel</RadzenButton>
+    <RadzenButton Icon="check_circle" Click="@UpdateValue" ButtonStyle="ButtonStyle.Primary">Save</RadzenButton>
+    <RadzenButton Icon="cancel" Click="@(() => IsEditing = false)" ButtonStyle="ButtonStyle.Secondary">Cancel</RadzenButton>
 }
 
 
