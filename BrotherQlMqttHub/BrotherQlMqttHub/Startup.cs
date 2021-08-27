@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Radzen;
 
 namespace BrotherQlMqttHub
 {
@@ -31,6 +32,9 @@ namespace BrotherQlMqttHub
             var dbConnectionString = Configuration.GetConnectionString("Database");
             services.AddDbContext<PrinterContext>(options =>
                 options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString)));
+
+            services.AddScoped<DialogService>();
+            services.AddScoped<NotificationService>();
             services.AddRazorPages();
             services.AddServerSideBlazor();
 

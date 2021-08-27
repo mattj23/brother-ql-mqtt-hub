@@ -24,20 +24,7 @@
         <td class="align-top">
             @foreach (var tag in Category.Tags)
             {
-                <div class="alert alert-tag alert-secondary">
-                    <div>
-                    <button type="button" class="close" aria-label="Close" @onclick="@(() => DeleteTag(tag.Id))">
-                        <span aria-hidden="true">&times;</span>
-                    </button>
-
-                    </div>
-                    <div class="mr-2">
-                    <DisplayOrEdit IsEditable="true"
-                                   Text="@tag.Name" />
-
-                    </div>
-
-                </div>
+                <TagDisplay Tag="@tag" />
             }
         </td>
     </tr>
