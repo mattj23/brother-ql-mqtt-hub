@@ -21,6 +21,8 @@
     [Parameter]
     public Action<Tag> OnDeleteTag { get; set; }
 
+    [Parameter]
+    public Action<Tag> OnUpdateTag { get; set; }
 
     private void OnClickDelete()
     {
@@ -33,21 +35,25 @@
         string newName = Tag.Name;
 
       var result = await DialogService.OpenAsync("Edit Tag Name", ds => 
-          @<div> 
-              <p Style="margin-bottom: 1rem">Confirm?</p> 
-              <RadzenTextBox @bind-Value="newName" /> 
-              <div class="row"> 
-                  <div class="col-md-12"> 
-                      <RadzenButton Text="Ok" Click="() => ds.Close(true)" Style="margin-bottom: 10px; width: 150px" /> 
-                      <RadzenButton Text="Cancel" Click="() => ds.Close(false)" ButtonStyle="ButtonStyle.Secondary"  Style="margin-bottom: 10px; width: 150px"/> 
+          @<div class="container"> 
+              <div class="row justify-content-start">
+                  <div class="col m-2">
+                      <RadzenTextBox @bind-Value="newName" /> 
+                  </div>
+              </div>
+
+              <div class="row justify-content-end"> 
+                  <div class="col m-2"> 
+                      <RadzenButton Text="Ok" Click="() => ds.Close(true)" ButtonStyle="ButtonStyle.Primary" /> 
+                      <RadzenButton Text="Cancel" Click="() => ds.Close(false)" ButtonStyle="ButtonStyle.Secondary" /> 
                   </div> 
               </div> 
-          </div>); 
+          </div>);
 
-        Debug.WriteLine($"{newName} {result}");
-
-    
+        if (result is bool b && b)
+        {
+            Tag.Name = newName;
+            OnUpdateTag?.Invoke(Tag);
+        }
     }
-
-
 }
