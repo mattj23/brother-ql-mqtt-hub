@@ -4,6 +4,7 @@
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Extensions.DependencyInjection
 @inject IServiceScopeFactory scopeFactory
+@inject DialogService dialogService
 
 <h3>
     <span>Categories</span>
@@ -18,6 +19,7 @@
 @foreach (var c in categories)
 {
     <CategoryEditor Category="c"
+                    Delete="() => DeleteCategory(c)"
                     Update="Refresh" />
     <br />
 }
@@ -56,6 +58,24 @@
 
         await context.SaveChangesAsync();
         await Refresh();
+    }
+
+    private async Task DeleteCategory(TagCategory cat)
+    {
+        var result = await dialogService.Confirm($"Are you sure you want to remove the category '{cat.Name}'?", "Confirm Delete Category");
+        if (result == true)
+        {
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetService<PrinterContext>();
+            var target = await context.Categories
+                .Include(c => c.Tags)
+                .FirstAsync(c => c.Id == cat.Id);
+            context.Categories.Remove(target);
+
+            await context.SaveChangesAsync();
+
+            await Refresh();
+        }
     }
 
 }

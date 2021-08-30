@@ -8,6 +8,12 @@
 @inject IServiceScopeFactory scopeFactory
 
 <RadzenCard>
+    <div>
+        <button type="button" class="close" aria-label="Close" @onclick="OnClickDelete">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+
     <h5>
         <span>@Category.Name</span>
     </h5>
@@ -61,6 +67,9 @@
 
     [Parameter]
     public EventCallback Update { get; set; }
+
+    [Parameter]
+    public EventCallback Delete { get; set; }
 
     private async Task DeleteTag(int tagId)
     {
@@ -130,6 +139,11 @@
         target.Tags.Add(new Tag {Name = "New Tag"});
         await context.SaveChangesAsync();
         await Update.InvokeAsync();
+    }
+
+    private void OnClickDelete()
+    {
+        Delete.InvokeAsync();
     }
 
 }
