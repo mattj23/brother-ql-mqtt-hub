@@ -1,21 +1,61 @@
 ﻿@page "/categories"
 @using BrotherQlMqttHub.Data
-@using BrotherQlMqttHub.Components 
+@using BrotherQlMqttHub.Components
+@using Microsoft.EntityFrameworkCore
+@using Microsoft.Extensions.DependencyInjection
+@inject IServiceScopeFactory scopeFactory
 
-<h3>Categories</h3>
+<h3>
+    <span>Categories</span>
 
-<CategoryEditor Category="example" />
+    <span>
+        <RadzenButton Icon="add"
+                      Click="AddNewCategory">
+        </RadzenButton>
+    </span>
+</h3>
+
+@foreach (var c in categories)
+{
+    <CategoryEditor Category="c"
+                    Update="Refresh" />
+    <br />
+}
+
 
 @code {
-    protected TagCategory example;
+    protected List<TagCategory> categories;
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
-        example = new TagCategory {Description = "Color of label paper", ShortDescription = "Paper Color"};
-        example.Tags = new List<Tag>();
-        example.Tags.Add(new Tag() {Name = "Orange"});
-        example.Tags.Add(new Tag() {Name = "Blue"});
-        return base.OnInitializedAsync();
+        categories = new List<TagCategory>();
+        await Refresh();
+        await base.OnInitializedAsync();
+    }
+
+    protected async Task Refresh()
+    {
+        using var scope = scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        categories.Clear();
+        categories.AddRange(context.Categories.Include(c => c.Tags));
+        StateHasChanged();
+    }
+
+
+    private async void AddNewCategory()
+    {
+        using var scope = scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetService<PrinterContext>();
+
+        await context.Categories.AddAsync(new TagCategory
+        {
+            Name = "New Category",
+            Description = "New category description"
+        });
+
+        await context.SaveChangesAsync();
+        await Refresh();
     }
 
 }

@@ -9,8 +9,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace BrotherQlMqttHub.Migrations
 {
     [DbContext(typeof(PrinterContext))]
-    [Migration("20210827183508_Initial")]
-    partial class Initial
+    [Migration("20210830171346_initial")]
+    partial class initial
     {
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
@@ -64,8 +64,8 @@ namespace BrotherQlMqttHub.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    b.Property<string>("CategoryId")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int?>("CategoryId")
+                        .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
@@ -82,13 +82,14 @@ namespace BrotherQlMqttHub.Migrations
 
             modelBuilder.Entity("BrotherQlMqttHub.Data.TagCategory", b =>
                 {
-                    b.Property<string>("Id")
-                        .HasColumnType("varchar(255)");
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
 
                     b.Property<string>("Description")
                         .HasColumnType("longtext");
 
-                    b.Property<string>("ShortDescription")
+                    b.Property<string>("Name")
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");

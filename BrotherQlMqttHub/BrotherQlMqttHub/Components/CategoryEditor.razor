@@ -2,18 +2,21 @@
 @using BrotherQlMqttHub.Data
 @using BrotherQlMqttHub.Components
 @using System.Diagnostics
+@using Microsoft.EntityFrameworkCore
 @using Microsoft.EntityFrameworkCore.Query.Internal
 @inject DialogService dialogService
 @inject IServiceScopeFactory scopeFactory
 
 <RadzenCard>
-<h5>@Category.ShortDescription</h5>
+    <h5>
+        <span>@Category.Name</span>
+    </h5>
 <table class="table table-borderless text-nowrap">
     <tr>
         <td class="align-middle font-weight-bold">Name</td>
         <td class="w-100 align-middle">
 
-            <DisplayOrEdit Text="@Category.ShortDescription"
+            <DisplayOrEdit Text="@Category.Name"
                            OnUpdateValue="UpdateName"
                            IsEditable="true" />
         </td>
@@ -32,8 +35,12 @@
     <tr>
         <td class="align-top font-weight-bold">
             <span>Tags</span>
-            <RadzenButton Icon="add"
-                          Click="AddNewTag"></RadzenButton>
+            
+            <span>
+                <RadzenButton Icon="add"
+                              Click="AddNewTag">
+                </RadzenButton>
+            </span>
         </td>
         <td class="align-top">
             @foreach (var tag in Category.Tags)
@@ -52,6 +59,9 @@
     [Parameter]
     public TagCategory Category { get; set; }
 
+    [Parameter]
+    public EventCallback Update { get; set; }
+
     private async Task DeleteTag(int tagId)
     {
         Debug.WriteLine($"Delete {tagId}");
@@ -59,33 +69,67 @@
 
     private async void DeleteTag(Tag tag)
     {
-        var result = await dialogService.Confirm($"Are you sure you want to remove the tag '{tag.Name}' from the category '{Category.ShortDescription}'?", "Confirm Delete Tag");
+        var result = await dialogService.Confirm($"Are you sure you want to remove the tag '{tag.Name}' from the category '{Category.Name}'?", "Confirm Delete Tag");
         if (result == true)
         {
-            Category.Tags.Remove(tag);
-            StateHasChanged();
+            using var scope = scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetService<PrinterContext>();
+            var target = context.Tags.First(t => t.Id == tag.Id);
+            context.Tags.Remove(target);
+
+            await context.SaveChangesAsync();
+
+            await Update.InvokeAsync();
         }
     }
 
     private async Task UpdateName(string newName)
     {
+        using var scope = scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        var target = await context.Categories.FirstOrDefaultAsync(c => c.Id == Category.Id);
 
+        target.Name = newName;
+        await context.SaveChangesAsync();
+
+        await Update.InvokeAsync();
     }
 
     private async Task UpdateDescription(string newDescription)
     {
+        using var scope = scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        var target = await context.Categories.FirstOrDefaultAsync(c => c.Id == Category.Id);
 
+        target.Description = newDescription;
+        await context.SaveChangesAsync();
+
+        Category.Description = newDescription;
+        await Update.InvokeAsync();
     }
 
     private async void UpdateTag(Tag tag)
     {
+        using var scope = scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        var target = await context.Tags.FirstOrDefaultAsync(t => t.Id == tag.Id);
 
+        target.Name = tag.Name;
+        await context.SaveChangesAsync();
+        await Update.InvokeAsync();
     }
 
     private async void AddNewTag()
     {
-        Category.Tags.Add(new Tag {Name = "New Tag"});
-        StateHasChanged();
+        using var scope = scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        var target = await context.Categories
+            .Include(c => c.Tags)
+            .FirstOrDefaultAsync(c => c.Id == Category.Id);
+
+        target.Tags.Add(new Tag {Name = "New Tag"});
+        await context.SaveChangesAsync();
+        await Update.InvokeAsync();
     }
 
 }
