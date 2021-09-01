@@ -15,4 +15,6 @@ namespace BrotherQlMqttHub.Data
         public List<Tag> Tags { get; set; }
         
     }
+
+
 }

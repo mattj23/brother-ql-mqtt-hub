@@ -2,7 +2,7 @@
 
 namespace BrotherQlMqttHub.Data
 {
-    public class Tag
+    public class Tag 
     {
         [Key]
         public int Id { get; set; }
