@@ -1,11 +1,15 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Reactive.Linq;
+using System.Reactive.Subjects;
 using System.Security.Authentication;
+using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using BrotherQlMqttHub.Data;
+using BrotherQlMqttHub.ViewModels;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using MQTTnet;
@@ -23,9 +27,14 @@ namespace BrotherQlMqttHub.Services
         private readonly IConfigurationSection _configSection;
         private readonly JsonSerializerSettings _jsonSettings;
 
+        private readonly ConcurrentDictionary<string, PrinterViewModel> _printers;
+        private readonly Subject<PrinterViewModel> _printerUpdates;
 
         public PrinterMonitor(IConfigurationSection configSection)
         {
+            _printerUpdates = new Subject<PrinterViewModel>();
+            _printers = new ConcurrentDictionary<string, PrinterViewModel>();
+
             _configSection = configSection;
             _jsonSettings = new JsonSerializerSettings()
             {
@@ -35,6 +44,8 @@ namespace BrotherQlMqttHub.Services
                 }
             };
         }
+
+        public IObservable<PrinterViewModel> PrinterUpdates => _printerUpdates.AsObservable();
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -72,8 +83,40 @@ namespace BrotherQlMqttHub.Services
 
             var message = JsonConvert.DeserializeObject<HostMessage>(stringContents, _jsonSettings);
 
+            foreach (var info in message.Printers)
+            {
+                if (!_printers.ContainsKey(info.Serial))
+                {
+                    var vm = new PrinterViewModel
+                    {
+                        Serial = info.Serial,
+                        IsOnline = true,
+                        LastSeen = DateTime.Now,
+                        Model = info.Model,
+                        Errors = info.Status.Errors,
+                        MediaType = info.Status.MediaType,
+                        MediaWidth = info.Status.MediaWidth
+                    };
+                    _printers[vm.Serial] = vm;
+                }
+                else
+                {
+                    _printers[info.Serial].IsOnline = true;
+                    _printers[info.Serial].IsOnline = true;
+
+                }
+            }
+
 
             return Task.CompletedTask;
         }
+
+        private PrinterViewModel PrinterFromUpdate(PrinterInfo info)
+        {
+
+        }
+
+
+
     }
 }
