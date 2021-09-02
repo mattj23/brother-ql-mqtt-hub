@@ -1,8 +1,12 @@
 ﻿@page "/"
+@implements IDisposable
 @using BrotherQlMqttHub.Services
+@using BrotherQlMqttHub.ViewModels
 @using Microsoft.Extensions.DependencyInjection
-@inject IServiceScopeFactory scopeFactory
+@using System.Reactive.Linq
+@using System.Threading
 @inject PrinterMonitor monitor
+@inject CategoryManager catManager 
 
 <h3>Brother QL Label Printer MQTT Hub</h3>
 
@@ -11,13 +15,74 @@
     Printers can be assigned with tags that can be used by client services to discover them and send jobs to them.
 </p>
 
+@foreach (var p in _printers.Values.OrderBy(x => x.Serial))
+{
+    <RadzenCard>
+        <div class="font-weight-bold">@p.Model (@p.Serial)</div>
+        <div class="row">
+            @if (p.IsOnline)
+            {
+                <div class="col">Online</div> 
+                <div class="col">Media @p.MediaType</div> 
+                <div class="col">@p.MediaWidth mm</div> 
+            }
+            else
+            {
+                <div class="col">Offline (last seen @p.LastSeen)</div>
+            }
+        </div>
+    </RadzenCard>
+
+    <br />
+}
+
 
 @code
 {
+    private Dictionary<string, PrinterViewModel> _printers;
+    private Dictionary<int, ICategoryView> _categories;
+
+    private IDisposable _printerUpdates;
+    private IDisposable _categoryUpdates;
 
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
-        return base.OnInitializedAsync();
+        _printers = monitor.GetPrinters().ToDictionary(p => p.Serial, p => p);
+        _printerUpdates = monitor.PrinterUpdates
+            .ObserveOn(SynchronizationContext.Current)
+            .Subscribe(ReceivePrinter);
+
+        _categories = (await catManager.GetCategories()).ToDictionary(c => c.Id, c => c);
+        _categoryUpdates = catManager.CategoryUpdates
+            .ObserveOn(SynchronizationContext.Current)
+            .Subscribe(ReceiveCategory);
+    }
+
+    private void ReceivePrinter(PrinterViewModel update)
+    {
+        _printers[update.Serial] = update;
+
+        StateHasChanged();
+    }
+
+    private void ReceiveCategory(ItemUpdate<ICategoryView> update)
+    {
+        if (update.IsDelete)
+        {
+            _categories.Remove(update.Item.Id);
+        }
+        else
+        {
+            _categories[update.Item.Id] = update.Item;
+        }
+
+        StateHasChanged();
+    }
+
+    public void Dispose()
+    {
+        _printerUpdates?.Dispose();
+        _categoryUpdates?.Dispose();
     }
 }

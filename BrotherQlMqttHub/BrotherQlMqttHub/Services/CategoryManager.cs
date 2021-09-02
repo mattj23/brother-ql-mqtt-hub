@@ -19,19 +19,16 @@ namespace BrotherQlMqttHub.Services
         private readonly ConcurrentDictionary<int, ICategoryView> _categories;
 
         private readonly Subject<ItemUpdate<ICategoryView>> _categorySubject;
-        // private readonly Subject<ItemUpdate<ITagView>> _tagSubject;
 
         public CategoryManager(IServiceScopeFactory scopeFactory)
         {
             _scopeFactory = scopeFactory;
             _categories = new ConcurrentDictionary<int, ICategoryView>();
             _categorySubject = new Subject<ItemUpdate<ICategoryView>>(); 
-            // _tagSubject = new Subject<ItemUpdate<ITagView>>();
         }
 
         public IObservable<ItemUpdate<ICategoryView>> CategoryUpdates => _categorySubject.AsObservable();
 
-        // public IObservable<ItemUpdate<ITagView>> TagUpdates => _tagSubject.AsObservable();
         public async Task<ICategoryView[]> GetCategories()
         {
             if (!_categories.Any())

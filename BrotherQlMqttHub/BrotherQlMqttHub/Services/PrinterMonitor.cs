@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
 using System.Security.Authentication;
@@ -10,7 +12,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using BrotherQlMqttHub.Data;
 using BrotherQlMqttHub.ViewModels;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using MQTTnet;
 using MQTTnet.Client;
@@ -18,6 +22,7 @@ using MQTTnet.Client.Options;
 using MQTTnet.Extensions.ManagedClient;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Serialization;
+using Radzen;
 
 namespace BrotherQlMqttHub.Services
 {
@@ -29,13 +34,16 @@ namespace BrotherQlMqttHub.Services
 
         private readonly ConcurrentDictionary<string, PrinterViewModel> _printers;
         private readonly Subject<PrinterViewModel> _printerUpdates;
+        private readonly IServiceScopeFactory _scopeFactory;
+        private List<PrinterTag> _printerTags;
 
-        public PrinterMonitor(IConfigurationSection configSection)
+        public PrinterMonitor(IConfigurationSection configSection, IServiceScopeFactory scopeFactory)
         {
             _printerUpdates = new Subject<PrinterViewModel>();
             _printers = new ConcurrentDictionary<string, PrinterViewModel>();
 
             _configSection = configSection;
+            _scopeFactory = scopeFactory;
             _jsonSettings = new JsonSerializerSettings()
             {
                 ContractResolver = new DefaultContractResolver
@@ -46,6 +54,8 @@ namespace BrotherQlMqttHub.Services
         }
 
         public IObservable<PrinterViewModel> PrinterUpdates => _printerUpdates.AsObservable();
+
+        public PrinterViewModel[] GetPrinters() => _printers.Values.ToArray();
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -77,24 +87,38 @@ namespace BrotherQlMqttHub.Services
 
         private Task MessageHandler(MqttApplicationMessageReceivedEventArgs e)
         {
-            Debug.WriteLine(e.ApplicationMessage.Topic);
-
             var stringContents = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
 
             var message = JsonConvert.DeserializeObject<HostMessage>(stringContents, _jsonSettings);
 
             foreach (var info in message.Printers)
             {
+                UpdatePrinter(info);
             }
-
 
             return Task.CompletedTask;
         }
 
-        // private PrinterViewModel PrinterFromUpdate(PrinterInfo info)
-        // {
-        //
-        // }
+        private void GetTags()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetService<PrinterContext>();
+            _printerTags = context.PrinterTags.ToList();
+        }
+
+
+        private void UpdatePrinter(PrinterInfo info)
+        {
+            if (_printerTags is null) GetTags();
+
+            var tags = _printerTags.Where(t => t.PrinterSerial == info.Serial)
+                .ToDictionary(p => p.TagCategoryId, p => p.TagId);
+
+            var vm = new PrinterViewModel(info.Serial, true, DateTime.Now, info.Model, info.Status.Errors, 
+                info.Status.MediaType, info.Status.MediaWidth, tags);
+
+            _printers[info.Serial] = vm;
+        }
 
 
 

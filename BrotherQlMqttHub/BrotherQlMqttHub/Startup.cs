@@ -39,7 +39,7 @@ namespace BrotherQlMqttHub
             services.AddRazorPages();
             services.AddServerSideBlazor();
 
-            services.AddSingleton(_ => new PrinterMonitor(Configuration.GetSection("Mqtt")));
+            services.AddSingleton(x => new PrinterMonitor(Configuration.GetSection("Mqtt"), x.GetService<IServiceScopeFactory>()));
             services.AddHostedService(s => s.GetService<PrinterMonitor>());
         }
 
