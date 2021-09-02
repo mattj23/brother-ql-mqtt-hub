@@ -31,6 +31,23 @@
                 <div class="col">Offline (last seen @p.LastSeen)</div>
             }
         </div>
+
+        <table class="table table-borderless text-nowrap">
+            @foreach (var cat in _categories.Values.OrderBy(c => c.Name))
+            {
+                <tr>
+                    <td class="align-middle font-weight-bold">@cat.Name</td>
+                    <td class="w-100 align-middle">
+                        <RadzenDropDown TValue="ITagView"
+                                        TextProperty="Name"
+                                        Value="@_tagSelections[p.Serial][cat.Id]"
+                                        Data="@_tagOptions[cat.Id]"
+                                        />
+
+                    </td>
+                </tr>
+            }
+        </table>
     </RadzenCard>
 
     <br />
@@ -40,6 +57,8 @@
 @code
 {
     private Dictionary<string, PrinterViewModel> _printers;
+    private Dictionary<int, List<ITagView>> _tagOptions;
+    private Dictionary<string, Dictionary<int, ITagView>> _tagSelections;
     private Dictionary<int, ICategoryView> _categories;
 
     private IDisposable _printerUpdates;
@@ -48,6 +67,9 @@
 
     protected override async Task OnInitializedAsync()
     {
+        _tagOptions = new Dictionary<int, List<ITagView>>();
+        _tagSelections = new Dictionary<string, Dictionary<int, ITagView>>();
+
         _printers = monitor.GetPrinters().ToDictionary(p => p.Serial, p => p);
         _printerUpdates = monitor.PrinterUpdates
             .ObserveOn(SynchronizationContext.Current)
@@ -57,16 +79,19 @@
         _categoryUpdates = catManager.CategoryUpdates
             .ObserveOn(SynchronizationContext.Current)
             .Subscribe(ReceiveCategory);
+
+        await UpdateEverything();
+
     }
 
-    private void ReceivePrinter(PrinterViewModel update)
+    private async void ReceivePrinter(PrinterViewModel update)
     {
         _printers[update.Serial] = update;
 
-        StateHasChanged();
+        await UpdateEverything();
     }
 
-    private void ReceiveCategory(ItemUpdate<ICategoryView> update)
+    private async void ReceiveCategory(ItemUpdate<ICategoryView> update)
     {
         if (update.IsDelete)
         {
@@ -77,7 +102,42 @@
             _categories[update.Item.Id] = update.Item;
         }
 
+        await UpdateEverything();
+    }
+
+    private async Task UpdateEverything()
+    {
+        _tagOptions.Clear();
+        foreach (var cat in _categories)
+        {
+            _tagOptions[cat.Value.Id] = cat.Value.ToOptions();
+        }
+
+        _tagSelections.Clear();
+        foreach (var p in _printers.Values)
+        {
+            _tagSelections[p.Serial] = new Dictionary<int, ITagView>();
+
+            foreach (var cat in _categories.Values)
+            {
+                int? selectedTagId = p.Tags.ContainsKey(cat.Id) ? (int?)p.Tags[cat.Id] : null;
+                var selectedTag = _tagOptions[cat.Id][0];
+                if (selectedTagId is not null)
+                {
+                    selectedTag = _tagOptions[cat.Id].First(t => t.Id == selectedTagId);
+
+                }
+
+                _tagSelections[p.Serial][cat.Id] = selectedTag;
+
+
+            }
+
+            
+        }
+
         StateHasChanged();
+
     }
 
     public void Dispose()

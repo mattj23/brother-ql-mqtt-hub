@@ -21,5 +21,12 @@ namespace BrotherQlMqttHub.ViewModels
                 Tags = category.Tags.Select(x => x.ToView()).ToList()
             };
         }
+
+        public static List<ITagView> ToOptions(this ICategoryView category)
+        {
+            var options = new List<ITagView> {new TagView {Id = -1, Name = "(No Selection)"}};
+            options.AddRange(category.Tags);
+            return options;
+        }
     }
 }
