@@ -1,13 +1,20 @@
 ﻿@page "/categories"
+@implements IDisposable
 @using BrotherQlMqttHub.Data
 @using BrotherQlMqttHub.Components
+@using BrotherQlMqttHub.Services
+@using BrotherQlMqttHub.ViewModels
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.Extensions.DependencyInjection
-@inject IServiceScopeFactory scopeFactory
+@using System.Reactive.Linq
+@using System.Threading
+@using System.Diagnostics
+@inject CategoryManager catManager
 @inject DialogService dialogService
 
 <h3>
     <span>Categories</span>
+    <span>@pageId</span>
 
     <span>
         <RadzenButton Icon="add"
@@ -26,56 +33,63 @@
 
 
 @code {
-    protected List<TagCategory> categories;
+    protected List<ICategoryView> categories;
+    protected IDisposable updateSubscription;
+
+    protected int pageId;
 
     protected override async Task OnInitializedAsync()
     {
-        categories = new List<TagCategory>();
+        pageId = new Random().Next();
+        categories = new List<ICategoryView>();
         await Refresh();
-        await base.OnInitializedAsync();
+
+        updateSubscription = catManager.CategoryUpdates
+            .ObserveOn(SynchronizationContext.Current)
+            .Subscribe(ReceiveUpdate);
+
     }
 
     protected async Task Refresh()
     {
-        using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        var current = await catManager.GetCategories();
         categories.Clear();
-        categories.AddRange(context.Categories.Include(c => c.Tags));
+        categories.AddRange(current);
         StateHasChanged();
     }
 
+    private void ReceiveUpdate(ItemUpdate<ICategoryView> update)
+    {
+        categories.Remove(categories.Find(c => c.Id == update.Item.Id));
+        if (!update.IsDelete)
+        {
+            categories.Add(update.Item);
+            categories.Sort((a, b) => String.Compare(a.Name, b.Name, StringComparison.Ordinal));
+        }
+        StateHasChanged();
+    }
 
     private async void AddNewCategory()
     {
-        using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetService<PrinterContext>();
+        await catManager.AddCategory();
 
-        await context.Categories.AddAsync(new TagCategory
-        {
-            Name = "New Category",
-            Description = "New category description"
-        });
-
-        await context.SaveChangesAsync();
         await Refresh();
     }
 
-    private async Task DeleteCategory(TagCategory cat)
+    private async Task DeleteCategory(ICategoryView cat)
     {
         var result = await dialogService.Confirm($"Are you sure you want to remove the category '{cat.Name}'?", "Confirm Delete Category");
         if (result == true)
         {
-            using var scope = scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetService<PrinterContext>();
-            var target = await context.Categories
-                .Include(c => c.Tags)
-                .FirstAsync(c => c.Id == cat.Id);
-            context.Categories.Remove(target);
-
-            await context.SaveChangesAsync();
+            await catManager.DeleteCategory(cat.Id);
 
             await Refresh();
         }
+    }
+
+    public void Dispose()
+    {
+        updateSubscription?.Dispose();
     }
 
 }

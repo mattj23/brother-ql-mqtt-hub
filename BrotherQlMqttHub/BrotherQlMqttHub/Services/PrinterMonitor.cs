@@ -85,36 +85,16 @@ namespace BrotherQlMqttHub.Services
 
             foreach (var info in message.Printers)
             {
-                if (!_printers.ContainsKey(info.Serial))
-                {
-                    var vm = new PrinterViewModel
-                    {
-                        Serial = info.Serial,
-                        IsOnline = true,
-                        LastSeen = DateTime.Now,
-                        Model = info.Model,
-                        Errors = info.Status.Errors,
-                        MediaType = info.Status.MediaType,
-                        MediaWidth = info.Status.MediaWidth
-                    };
-                    _printers[vm.Serial] = vm;
-                }
-                else
-                {
-                    _printers[info.Serial].IsOnline = true;
-                    _printers[info.Serial].IsOnline = true;
-
-                }
             }
 
 
             return Task.CompletedTask;
         }
 
-        private PrinterViewModel PrinterFromUpdate(PrinterInfo info)
-        {
-
-        }
+        // private PrinterViewModel PrinterFromUpdate(PrinterInfo info)
+        // {
+        //
+        // }
 
 
 

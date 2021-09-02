@@ -32,6 +32,7 @@ namespace BrotherQlMqttHub
             var dbConnectionString = Configuration.GetConnectionString("Database");
             services.AddDbContext<PrinterContext>(options =>
                 options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString)));
+            services.AddSingleton<CategoryManager>();
 
             services.AddScoped<DialogService>();
             services.AddScoped<NotificationService>();

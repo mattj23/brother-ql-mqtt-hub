@@ -2,10 +2,12 @@
 @using BrotherQlMqttHub.Data
 @using BrotherQlMqttHub.Components
 @using System.Diagnostics
+@using BrotherQlMqttHub.Services
+@using BrotherQlMqttHub.ViewModels
 @using Microsoft.EntityFrameworkCore
 @using Microsoft.EntityFrameworkCore.Query.Internal
 @inject DialogService dialogService
-@inject IServiceScopeFactory scopeFactory
+@inject CategoryManager categories
 
 <RadzenCard>
     <div>
@@ -63,7 +65,7 @@
 </RadzenCard>
 @code {
     [Parameter]
-    public TagCategory Category { get; set; }
+    public ICategoryView Category { get; set; }
 
     [Parameter]
     public EventCallback Update { get; set; }
@@ -71,22 +73,13 @@
     [Parameter]
     public EventCallback Delete { get; set; }
 
-    private async Task DeleteTag(int tagId)
-    {
-        Debug.WriteLine($"Delete {tagId}");
-    }
 
-    private async void DeleteTag(Tag tag)
+    private async void DeleteTag(ITagView tag)
     {
         var result = await dialogService.Confirm($"Are you sure you want to remove the tag '{tag.Name}' from the category '{Category.Name}'?", "Confirm Delete Tag");
         if (result == true)
         {
-            using var scope = scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetService<PrinterContext>();
-            var target = context.Tags.First(t => t.Id == tag.Id);
-            context.Tags.Remove(target);
-
-            await context.SaveChangesAsync();
+            await categories.DeleteTag(tag.Id);
 
             await Update.InvokeAsync();
         }
@@ -94,50 +87,29 @@
 
     private async Task UpdateName(string newName)
     {
-        using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetService<PrinterContext>();
-        var target = await context.Categories.FirstOrDefaultAsync(c => c.Id == Category.Id);
-
-        target.Name = newName;
-        await context.SaveChangesAsync();
+        await categories.UpdateCategory(Category.Id, newName, Category.Description);
 
         await Update.InvokeAsync();
     }
 
     private async Task UpdateDescription(string newDescription)
     {
-        using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetService<PrinterContext>();
-        var target = await context.Categories.FirstOrDefaultAsync(c => c.Id == Category.Id);
+        await categories.UpdateCategory(Category.Id, Category.Name, newDescription);
 
-        target.Description = newDescription;
-        await context.SaveChangesAsync();
-
-        Category.Description = newDescription;
         await Update.InvokeAsync();
     }
 
-    private async void UpdateTag(Tag tag)
+    private async Task UpdateTag(Tuple<int, string> info)
     {
-        using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetService<PrinterContext>();
-        var target = await context.Tags.FirstOrDefaultAsync(t => t.Id == tag.Id);
+        await categories.UpdateTag(info.Item1, info.Item2);
 
-        target.Name = tag.Name;
-        await context.SaveChangesAsync();
         await Update.InvokeAsync();
     }
 
     private async void AddNewTag()
     {
-        using var scope = scopeFactory.CreateScope();
-        var context = scope.ServiceProvider.GetService<PrinterContext>();
-        var target = await context.Categories
-            .Include(c => c.Tags)
-            .FirstOrDefaultAsync(c => c.Id == Category.Id);
+        await categories.AddTag(Category.Id);
 
-        target.Tags.Add(new Tag {Name = "New Tag"});
-        await context.SaveChangesAsync();
         await Update.InvokeAsync();
     }
 

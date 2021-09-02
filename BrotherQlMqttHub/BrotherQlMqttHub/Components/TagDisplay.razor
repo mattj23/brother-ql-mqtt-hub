@@ -1,5 +1,6 @@
 ﻿@using BrotherQlMqttHub.Data
 @using System.Diagnostics
+@using BrotherQlMqttHub.ViewModels
 @inject DialogService DialogService
 
 <div class="alert alert-tag alert-secondary">
@@ -16,17 +17,17 @@
 
 @code {
     [Parameter]
-    public Tag Tag { get; set; }
+    public ITagView Tag { get; set; }
 
     [Parameter]
-    public Action<Tag> OnDeleteTag { get; set; }
+    public EventCallback<ITagView> OnDeleteTag { get; set; }
 
     [Parameter]
-    public Action<Tag> OnUpdateTag { get; set; }
+    public EventCallback<Tuple<int, string>> OnUpdateTag { get; set; }
 
     private void OnClickDelete()
     {
-        this.OnDeleteTag?.Invoke(Tag);
+        OnDeleteTag.InvokeAsync(Tag);
     }
 
 
@@ -52,8 +53,7 @@
 
         if (result is bool b && b)
         {
-            Tag.Name = newName;
-            OnUpdateTag?.Invoke(Tag);
+            await OnUpdateTag.InvokeAsync(Tuple.Create(Tag.Id, newName));
         }
     }
 }

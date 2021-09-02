@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
@@ -31,6 +32,15 @@ namespace BrotherQlMqttHub.Services
         public IObservable<ItemUpdate<ICategoryView>> CategoryUpdates => _categorySubject.AsObservable();
 
         // public IObservable<ItemUpdate<ITagView>> TagUpdates => _tagSubject.AsObservable();
+        public async Task<ICategoryView[]> GetCategories()
+        {
+            if (!_categories.Any())
+            {
+                await LoadFromDatabase();
+            }
+
+            return _categories.Values.ToArray();
+        }
 
         public async Task AddCategory()
         {
@@ -39,7 +49,8 @@ namespace BrotherQlMqttHub.Services
             var newCategory = new TagCategory
             {
                 Name = "New Category",
-                Description = "New category description"
+                Description = "New category description",
+                Tags = new List<Tag>()
             };
             await context.Categories.AddAsync(newCategory);
             await context.SaveChangesAsync();
@@ -53,7 +64,9 @@ namespace BrotherQlMqttHub.Services
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetService<PrinterContext>();
-            var target = await context.Categories.FirstAsync(c => c.Id == id);
+            var target = await context.Categories
+                .Include(c => c.Tags)
+                .FirstAsync(c => c.Id == id);
             target.Name = name;
             target.Description = description;
 
@@ -86,7 +99,6 @@ namespace BrotherQlMqttHub.Services
             var target = await context.Categories
                 .Include(c => c.Tags)
                 .FirstAsync(c => c.Id == categoryId);
-            context.Categories.Remove(target);
 
             target.Tags.Add(new Tag {Name = "New Tag"});
             await context.SaveChangesAsync();
@@ -140,22 +152,15 @@ namespace BrotherQlMqttHub.Services
         }
 
 
-        private async Task<ICategoryView[]> GetCategories()
-        {
-            if (!_categories.Any())
-            {
-                await LoadFromDatabase();
-            }
-
-            return _categories.Values.ToArray();
-        }
 
         private async Task LoadFromDatabase()
         {
             using var factory = _scopeFactory.CreateScope();
             var context = factory.ServiceProvider.GetService<PrinterContext>();
 
-            var data = await context.Categories.ToArrayAsync();
+            var data = await context.Categories
+                .Include(c => c.Tags)
+                .ToArrayAsync();
 
             _categories.Clear();
             foreach (var tagCategory in data)
