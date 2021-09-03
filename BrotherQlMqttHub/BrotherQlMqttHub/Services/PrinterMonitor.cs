@@ -115,6 +115,9 @@ namespace BrotherQlMqttHub.Services
 
             Debug.WriteLine("Attempting connection to MQTT broker...");
             await _client.StartAsync(options);
+
+            Observable.Interval(TimeSpan.FromSeconds(5))
+                .Subscribe(_ => CheckForOffline());
         }
 
         /// <summary>
@@ -158,6 +161,31 @@ namespace BrotherQlMqttHub.Services
             _printerTags = context.PrinterTags.ToList();
         }
 
+        private void CheckForOffline()
+        {
+            foreach (var p in _printers.Values)
+            {
+                if (p.IsOnline && DateTime.Now - p.LastSeen > TimeSpan.FromSeconds(20))
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var context = scope.ServiceProvider.GetService<PrinterContext>();
+                    var target = context.Printers.FirstOrDefault(x => x.Serial == p.Serial);
+                    if (target is not null)
+                    {
+                        target.LastSeen = p.LastSeen;
+                        context.SaveChanges();
+                    }
+
+                    var tags = _printerTags.Where(t => t.PrinterSerial == p.Serial)
+                        .ToDictionary(p => p.TagCategoryId, p => p.TagId);
+
+                    var vm = new PrinterViewModel(p.Serial, false, p.LastSeen, p.Model, p.Errors,
+                        p.MediaType, p.MediaWidth, tags);
+                    
+                    _printerUpdates.OnNext(vm);
+                }
+            }
+        }
 
         private void UpdatePrinter(PrinterInfo info)
         {
@@ -166,8 +194,10 @@ namespace BrotherQlMqttHub.Services
             var tags = _printerTags.Where(t => t.PrinterSerial == info.Serial)
                 .ToDictionary(p => p.TagCategoryId, p => p.TagId);
 
-            var vm = new PrinterViewModel(info.Serial, true, DateTime.Now, info.Model, info.Status.Errors, 
-                info.Status.MediaType, info.Status.MediaWidth, tags);
+            var vm = new PrinterViewModel(info.Serial, true, DateTime.Now, info.Model, 
+                info.Status?.Errors ?? 0, 
+                info.Status?.MediaType ?? "Unknown", 
+                info.Status?.MediaWidth ?? 0, tags);
 
             // If this is a new printer being observed, we should save it to the database
             if (!_printers.ContainsKey(info.Serial))
