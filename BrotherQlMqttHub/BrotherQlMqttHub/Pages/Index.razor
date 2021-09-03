@@ -5,6 +5,7 @@
 @using Microsoft.Extensions.DependencyInjection
 @using System.Reactive.Linq
 @using System.Threading
+@using System.Diagnostics
 @inject PrinterMonitor monitor
 @inject CategoryManager catManager 
 
@@ -18,7 +19,7 @@
 @foreach (var p in _printers.Values.OrderBy(x => x.Serial))
 {
     <RadzenCard>
-        <div class="font-weight-bold">@p.Model (@p.Serial)</div>
+        <h4>@p.Model (@p.Serial)</h4>
         <div class="row">
             @if (p.IsOnline)
             {
@@ -31,23 +32,23 @@
                 <div class="col">Offline (last seen @p.LastSeen)</div>
             }
         </div>
-
-        <table class="table table-borderless text-nowrap">
+        
+        @if (_categories is not null)
+        {
             @foreach (var cat in _categories.Values.OrderBy(c => c.Name))
             {
-                <tr>
-                    <td class="align-middle font-weight-bold">@cat.Name</td>
-                    <td class="w-100 align-middle">
-                        <RadzenDropDown TValue="ITagView"
-                                        TextProperty="Name"
-                                        Value="@_tagSelections[p.Serial][cat.Id]"
-                                        Data="@_tagOptions[cat.Id]"
-                                        />
+                <div class="m-3">
+                    <h5>@cat.Name</h5>
+                    <RadzenDropDown TValue="ITagView"
+                                    TextProperty="Name"
+                                    Change="@(o => OnChange(p.Serial, o))"
+                                    @bind-Value="@_tagSelections[p.Serial][cat.Id]"
+                                    Data="@_tagOptions[cat.Id]"/>
 
-                    </td>
-                </tr>
+                </div>
             }
-        </table>
+        }
+ 
     </RadzenCard>
 
     <br />
@@ -84,6 +85,13 @@
 
     }
 
+    private async void OnChange(string printerSerial, object tagView)
+    {
+        var tag = tagView as ITagView;
+
+        await monitor.SetPrinterTag(printerSerial, tag.Id);
+    }
+
     private async void ReceivePrinter(PrinterViewModel update)
     {
         _printers[update.Serial] = update;
@@ -107,6 +115,8 @@
 
     private async Task UpdateEverything()
     {
+        if (_categories is null) return;
+
         _tagOptions.Clear();
         foreach (var cat in _categories)
         {
@@ -125,15 +135,10 @@
                 if (selectedTagId is not null)
                 {
                     selectedTag = _tagOptions[cat.Id].First(t => t.Id == selectedTagId);
-
                 }
 
                 _tagSelections[p.Serial][cat.Id] = selectedTag;
-
-
             }
-
-            
         }
 
         StateHasChanged();

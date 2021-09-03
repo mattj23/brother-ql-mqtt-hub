@@ -57,8 +57,40 @@ namespace BrotherQlMqttHub.Services
 
         public PrinterViewModel[] GetPrinters() => _printers.Values.ToArray();
 
+        public async Task SetPrinterTag(string printerSerial, int selectedTag)
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetService<PrinterContext>();
+
+            var desiredTag = context.Tags.Include(t => t.Category)
+                .FirstOrDefault(t => t.Id == selectedTag);
+
+            if (desiredTag is null) return;
+
+            var target = context.PrinterTags.FirstOrDefault(p =>
+                p.TagCategoryId == desiredTag.Category.Id && p.PrinterSerial == printerSerial);
+
+            if (target is not null)
+            {
+                context.PrinterTags.Remove(target);
+            }
+
+            await context.PrinterTags.AddAsync(new PrinterTag
+            {
+                PrinterSerial = printerSerial,
+                TagCategoryId = desiredTag.Category.Id,
+                TagId = desiredTag.Id
+            });
+
+            await context.SaveChangesAsync();
+
+            GetTags();
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            await LoadPrinters();
+
             var options = new ManagedMqttClientOptionsBuilder()
                 .WithAutoReconnectDelay(TimeSpan.FromSeconds(5))
                 .WithClientOptions(new MqttClientOptionsBuilder()
@@ -83,6 +115,26 @@ namespace BrotherQlMqttHub.Services
 
             Debug.WriteLine("Attempting connection to MQTT broker...");
             await _client.StartAsync(options);
+        }
+
+        /// <summary>
+        /// Load the printer information from the database
+        /// </summary>
+        /// <returns></returns>
+        private async Task LoadPrinters()
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetService<PrinterContext>();
+            _printerTags = await context.PrinterTags.ToListAsync();
+
+            var tempPrinters = await context.Printers.ToListAsync();
+            foreach (var p in tempPrinters)
+            {
+                var lastSeen = p.LastSeen.HasValue ? p.LastSeen.Value : default;
+                var tags = _printerTags.Where(t => t.PrinterSerial == p.Serial)
+                    .ToDictionary(x => x.TagCategoryId, x => x.TagId);
+                _printers[p.Serial] = new PrinterViewModel(p.Serial, false, lastSeen, p.Model, 0, string.Empty, 0, tags);
+            }
         }
 
         private Task MessageHandler(MqttApplicationMessageReceivedEventArgs e)
@@ -117,7 +169,23 @@ namespace BrotherQlMqttHub.Services
             var vm = new PrinterViewModel(info.Serial, true, DateTime.Now, info.Model, info.Status.Errors, 
                 info.Status.MediaType, info.Status.MediaWidth, tags);
 
+            // If this is a new printer being observed, we should save it to the database
+            if (!_printers.ContainsKey(info.Serial))
+            {
+                using var scope = _scopeFactory.CreateScope();
+                var context = scope.ServiceProvider.GetService<PrinterContext>();
+                context.Printers.Add(new Printer
+                {
+                    LastSeen = DateTime.Now,
+                    Model = info.Model,
+                    Serial = info.Serial
+                });
+                context.SaveChanges();
+            }
+
             _printers[info.Serial] = vm;
+
+            _printerUpdates.OnNext(vm);
         }
 
 
