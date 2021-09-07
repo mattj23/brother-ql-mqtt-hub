@@ -9,11 +9,13 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Radzen;
 
 namespace BrotherQlMqttHub
@@ -31,6 +33,31 @@ namespace BrotherQlMqttHub
         // For more information on how to configure your application, visit https://go.microsoft.com/fwlink/?LinkID=398940
         public void ConfigureServices(IServiceCollection services)
         {
+            using var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder.SetMinimumLevel(LogLevel.Information);
+                builder.AddConsole();
+                builder.AddEventSourceLogger();
+            });
+            var logger = loggerFactory.CreateLogger("Startup");
+
+            if (string.Equals(
+                Environment.GetEnvironmentVariable("SSL_OFFLOAD"),
+                "true", StringComparison.OrdinalIgnoreCase))
+            {
+                logger.LogInformation("SSL offloading enabled, configuring header forwarding");
+                services.Configure<ForwardedHeadersOptions>(options =>
+                {
+                    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor |
+                                               ForwardedHeaders.XForwardedProto;
+                    // Only loopback proxies are allowed by default.
+                    // Clear that restriction because forwarders are enabled by explicit 
+                    // configuration.
+                    options.KnownNetworks.Clear();
+                    options.KnownProxies.Clear();
+                });
+            }
+
             var dbConnectionString = Configuration.GetConnectionString("Database");
             services.AddDbContext<PrinterContext>(options =>
                 options.UseMySql(dbConnectionString, ServerVersion.AutoDetect(dbConnectionString)));
@@ -49,6 +76,13 @@ namespace BrotherQlMqttHub
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
         public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
         {
+            if (string.Equals(
+                Environment.GetEnvironmentVariable("SSL_OFFLOAD"),
+                "true", StringComparison.OrdinalIgnoreCase))
+            {
+                app.UseForwardedHeaders();
+            }
+
             if (env.IsDevelopment())
             {
                 app.UseDeveloperExceptionPage();
@@ -60,7 +94,7 @@ namespace BrotherQlMqttHub
                 app.UseHsts();
             }
 
-            app.UseHttpsRedirection();
+            // app.UseHttpsRedirection();
             app.UseStaticFiles();
 
             app.UseRouting();
