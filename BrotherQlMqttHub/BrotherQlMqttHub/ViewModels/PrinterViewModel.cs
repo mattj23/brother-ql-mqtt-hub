@@ -7,9 +7,10 @@ namespace BrotherQlMqttHub.ViewModels
     {
         private readonly Dictionary<int, int> _tags;
 
-        public PrinterViewModel(string serial, bool isOnline, DateTime lastSeen, string model, int errors, string mediaType, int mediaWidth, Dictionary<int, int> tags)
+        public PrinterViewModel(string serial, string host, bool isOnline, DateTime lastSeen, string model, int errors, string mediaType, int mediaWidth, Dictionary<int, int> tags)
         {
             Serial = serial;
+            Host = host;
             LastSeen = lastSeen;
             IsOnline = isOnline;
             Model = model;
@@ -24,6 +25,8 @@ namespace BrotherQlMqttHub.ViewModels
         public DateTime LastSeen { get; }
 
         public string Serial { get; }
+
+        public string Host { get; }
 
         public string Model { get; }
 

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using BrotherQlMqttHub.Data;
@@ -7,6 +8,7 @@ using BrotherQlMqttHub.Services;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.HttpsPolicy;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -36,6 +38,7 @@ namespace BrotherQlMqttHub
 
             services.AddScoped<DialogService>();
             services.AddScoped<NotificationService>();
+            services.AddControllers();
             services.AddRazorPages();
             services.AddServerSideBlazor();
 
@@ -62,8 +65,17 @@ namespace BrotherQlMqttHub
 
             app.UseRouting();
 
+            app.Use(next => context =>
+            {
+                Debug.WriteLine($"Found: {context.GetEndpoint()?.DisplayName}");
+                return next(context);
+            });
+
+
             app.UseEndpoints(endpoints =>
             {
+                endpoints.MapDefaultControllerRoute();
+                endpoints.MapControllers();
                 endpoints.MapBlazorHub();
                 endpoints.MapFallbackToPage("/_Host");
             });

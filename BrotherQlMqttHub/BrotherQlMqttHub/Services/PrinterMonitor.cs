@@ -57,6 +57,28 @@ namespace BrotherQlMqttHub.Services
 
         public PrinterViewModel[] GetPrinters() => _printers.Values.ToArray();
 
+        public async Task<bool> PrintRequest(string printerSerial, string imageUrl)
+        {
+            if (!_printers.ContainsKey(printerSerial))
+            {
+                return false;
+            }
+
+            var printer = _printers[printerSerial];
+            if (!printer.IsOnline)
+            {
+                return false;
+            }
+
+            var payload = new MqttApplicationMessageBuilder()
+                .WithTopic($"label_servers/print/{printer.Host}/{printerSerial}/url")
+                .WithPayload(imageUrl)
+                .WithExactlyOnceQoS()
+                .Build();
+            await _client.PublishAsync(payload);
+            return true;
+        }
+
         public async Task SetPrinterTag(string printerSerial, int selectedTag)
         {
             using var scope = _scopeFactory.CreateScope();
@@ -136,7 +158,7 @@ namespace BrotherQlMqttHub.Services
                 var lastSeen = p.LastSeen.HasValue ? p.LastSeen.Value : default;
                 var tags = _printerTags.Where(t => t.PrinterSerial == p.Serial)
                     .ToDictionary(x => x.TagCategoryId, x => x.TagId);
-                _printers[p.Serial] = new PrinterViewModel(p.Serial, false, lastSeen, p.Model, 0, string.Empty, 0, tags);
+                _printers[p.Serial] = new PrinterViewModel(p.Serial, string.Empty, false, lastSeen, p.Model, 0, string.Empty, 0, tags);
             }
         }
 
@@ -148,7 +170,7 @@ namespace BrotherQlMqttHub.Services
 
             foreach (var info in message.Printers)
             {
-                UpdatePrinter(info);
+                UpdatePrinter(message.Host, info);
             }
 
             return Task.CompletedTask;
@@ -179,7 +201,7 @@ namespace BrotherQlMqttHub.Services
                     var tags = _printerTags.Where(t => t.PrinterSerial == p.Serial)
                         .ToDictionary(p => p.TagCategoryId, p => p.TagId);
 
-                    var vm = new PrinterViewModel(p.Serial, false, p.LastSeen, p.Model, p.Errors,
+                    var vm = new PrinterViewModel(p.Serial, p.Host, false, p.LastSeen, p.Model, p.Errors,
                         p.MediaType, p.MediaWidth, tags);
                     
                     _printerUpdates.OnNext(vm);
@@ -187,14 +209,14 @@ namespace BrotherQlMqttHub.Services
             }
         }
 
-        private void UpdatePrinter(PrinterInfo info)
+        private void UpdatePrinter(string host, PrinterInfo info)
         {
             if (_printerTags is null) GetTags();
 
             var tags = _printerTags.Where(t => t.PrinterSerial == info.Serial)
                 .ToDictionary(p => p.TagCategoryId, p => p.TagId);
 
-            var vm = new PrinterViewModel(info.Serial, true, DateTime.Now, info.Model, 
+            var vm = new PrinterViewModel(info.Serial, host, true, DateTime.Now, info.Model, 
                 info.Status?.Errors ?? 0, 
                 info.Status?.MediaType ?? "Unknown", 
                 info.Status?.MediaWidth ?? 0, tags);
