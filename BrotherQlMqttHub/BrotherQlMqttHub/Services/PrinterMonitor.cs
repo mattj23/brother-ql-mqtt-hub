@@ -158,7 +158,7 @@ namespace BrotherQlMqttHub.Services
                 var lastSeen = p.LastSeen.HasValue ? p.LastSeen.Value : default;
                 var tags = _printerTags.Where(t => t.PrinterSerial == p.Serial)
                     .ToDictionary(x => x.TagCategoryId, x => x.TagId);
-                _printers[p.Serial] = new PrinterViewModel(p.Serial, string.Empty, false, lastSeen, p.Model, 0, string.Empty, 0, tags);
+                _printers[p.Serial] = new PrinterViewModel(p.Serial, string.Empty, string.Empty, false, lastSeen, p.Model, 0, string.Empty, 0, tags);
             }
         }
 
@@ -170,7 +170,7 @@ namespace BrotherQlMqttHub.Services
 
             foreach (var info in message.Printers)
             {
-                UpdatePrinter(message.Host, info);
+                UpdatePrinter(message.Host, message.Ip, info);
             }
 
             return Task.CompletedTask;
@@ -201,7 +201,7 @@ namespace BrotherQlMqttHub.Services
                     var tags = _printerTags.Where(t => t.PrinterSerial == p.Serial)
                         .ToDictionary(p => p.TagCategoryId, p => p.TagId);
 
-                    var vm = new PrinterViewModel(p.Serial, p.Host, false, p.LastSeen, p.Model, p.Errors,
+                    var vm = new PrinterViewModel(p.Serial, p.Host, p.HostIp, false, p.LastSeen, p.Model, p.Errors,
                         p.MediaType, p.MediaWidth, tags);
                     
                     _printerUpdates.OnNext(vm);
@@ -209,14 +209,14 @@ namespace BrotherQlMqttHub.Services
             }
         }
 
-        private void UpdatePrinter(string host, PrinterInfo info)
+        private void UpdatePrinter(string host, string hostIp, PrinterInfo info)
         {
             if (_printerTags is null) GetTags();
 
             var tags = _printerTags.Where(t => t.PrinterSerial == info.Serial)
                 .ToDictionary(p => p.TagCategoryId, p => p.TagId);
 
-            var vm = new PrinterViewModel(info.Serial, host, true, DateTime.Now, info.Model, 
+            var vm = new PrinterViewModel(info.Serial, host, hostIp, true, DateTime.Now, info.Model, 
                 info.Status?.Errors ?? 0, 
                 info.Status?.MediaType ?? "Unknown", 
                 info.Status?.MediaWidth ?? 0, tags);
