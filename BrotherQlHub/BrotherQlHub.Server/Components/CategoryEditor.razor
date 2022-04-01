@@ -1,0 +1,98 @@
+﻿@using BrotherQlHub.Server.Services
+@using BrotherQlHub.Server.ViewModels
+@inject IDialogService _dialogs
+@inject CategoryManager _categories
+
+<MudCard>
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@Category.Name</MudText>
+        </CardHeaderContent>
+        <CardHeaderActions>
+            <MudIconButton Icon="@Icons.Filled.Edit"
+                           OnClick="OnClickDelete" />
+        </CardHeaderActions>
+    </MudCardHeader>
+    
+    <MudCardContent>
+        <MudText Typo="Typo.subtitle1">@Category.Description</MudText>
+        <div></div>
+
+        <MudElement Class="d-flex flex-row">
+            <MudText Typo="Typo.body1" Style="font-weight: bold">Tags</MudText>
+            <MudSpacer/>
+
+            <MudIconButton Icon="@Icons.Filled.Add"
+                           OnClick="AddNewTag">
+            </MudIconButton>
+        </MudElement>
+
+        @foreach (var tag in Category.Tags)
+        {
+            <TagDisplay Tag="@tag"
+                        OnUpdateTag="UpdateTag"
+                        OnDeleteTag="DeleteTag"/>
+        }
+        
+    </MudCardContent>
+
+
+</MudCard>
+@code {
+
+    [Parameter]
+    public ICategoryView Category { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback Update { get; set; }
+
+    [Parameter]
+    public EventCallback Delete { get; set; }
+
+
+    private async void DeleteTag(ITagView tag)
+    {
+        var result = await _dialogs.ShowMessageBox("Confirm Delete Tag", 
+            $"Are you sure you want to remove the tag '{tag.Name}' from the category '{Category.Name}'?", 
+            yesText:"Yes", noText:"No");
+        if (result == true)
+        {
+            await _categories.DeleteTag(tag.Id);
+            await Update.InvokeAsync();
+        }
+    }
+
+    private async Task UpdateName(string newName)
+    {
+        await _categories.UpdateCategory(Category.Id, newName, Category.Description);
+
+        await Update.InvokeAsync();
+    }
+
+    private async Task UpdateDescription(string newDescription)
+    {
+        await _categories.UpdateCategory(Category.Id, Category.Name, newDescription);
+
+        await Update.InvokeAsync();
+    }
+
+    private async Task UpdateTag(Tuple<int, string> info)
+    {
+        await _categories.UpdateTag(info.Item1, info.Item2);
+
+        await Update.InvokeAsync();
+    }
+
+    private async void AddNewTag()
+    {
+        await _categories.AddTag(Category.Id);
+
+        await Update.InvokeAsync();
+    }
+
+    private void OnClickDelete()
+    {
+        Delete.InvokeAsync();
+    }
+
+}

@@ -1,0 +1,43 @@
+﻿@using System.Diagnostics
+@using BrotherQlHub.Server.ViewModels
+@inject DialogService _dialogService
+
+<div class="alert alert-tag alert-secondary">
+    <div>
+        <button type="button" class="close" aria-label="Close" @onclick="OnClickDelete">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
+
+    <div class="mr-4">
+        <button type="button" class="btn btn-link" @onclick="ShowInlineDialog">@Tag.Name</button>
+    </div>
+</div>
+
+@code {
+
+    [Parameter]
+    public ITagView Tag { get; set; } = null!;
+
+    [Parameter]
+    public EventCallback<ITagView> OnDeleteTag { get; set; }
+
+    [Parameter]
+    public EventCallback<Tuple<int, string>> OnUpdateTag { get; set; }
+
+    private void OnClickDelete()
+    {
+        OnDeleteTag.InvokeAsync(Tag);
+    }
+
+
+    async Task ShowInlineDialog()
+    {
+        string newName = Tag.Name;
+
+        // if (result is bool b && b)
+        // {
+        //     await OnUpdateTag.InvokeAsync(Tuple.Create(Tag.Id, newName));
+        // }
+    }
+}

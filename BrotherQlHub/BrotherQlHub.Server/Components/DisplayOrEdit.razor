@@ -1,0 +1,46 @@
+﻿@if (!IsEditing)
+{
+    <div>
+        <span class="align-middle">@Text</span>
+        @if (IsEditable) {<button class="btn btn-link" @onclick="SetEdit">(edit)</button>}
+    </div>
+}
+else
+{
+    <MudInput @bind-Value="@NewText" />
+    <MudButton OnClick="@UpdateValue">Save</MudButton>
+    <MudButton OnClick="@(() => IsEditing = false)">Cancel</MudButton>
+}
+
+
+@code {
+    [Parameter]
+    public string Text { get; set; }
+
+    [Parameter]
+    public bool IsEditable { get; set; }
+
+    [Parameter]
+    public EventCallback<string> OnUpdateValue { get; set; }
+
+    [Parameter]
+    public List<string> Suggestions { get; set; }
+
+    public string NewText { get; set; }
+    protected bool IsEditing { get; set; } = false;
+
+    protected async Task SetEdit()
+    {
+        NewText = Text;
+        IsEditing = true;
+    }
+
+    protected async Task UpdateValue()
+    {
+        await OnUpdateValue.InvokeAsync(NewText);
+        IsEditing = false;
+        StateHasChanged();
+    }
+
+
+}
