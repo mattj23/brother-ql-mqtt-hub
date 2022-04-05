@@ -5,17 +5,19 @@
 @using BrotherQlHub.Server.ViewModels
 @using BrotherQlHub.Server.Components
 @using System.Reactive.Linq
-@inject CategoryManager catManager
-@inject IDialogService dialogService
+@inject CategoryManager _catManager
+@inject IDialogService _dialogService
 
-<MudElement Class="d-flex flex-row">
+<MudElement Class="d-flex flex-row mt-3 mb-3 align-center align-content-center">
     <MudText Typo="Typo.h5" Class="mt-3 mr-3">Categories</MudText>
     <MudButton OnClick="AddNewCategory">
         <MudIcon Icon="@Icons.Filled.Add"></MudIcon>
     </MudButton>
 </MudElement>
 
-@foreach (var c in categories)
+<MudDivider Class="mb-3" />
+
+@foreach (var c in _categories)
 {
     <CategoryEditor Category="c"
                     Delete="() => DeleteCategory(c)"
@@ -25,63 +27,73 @@
 
 
 @code {
-    protected List<ICategoryView> categories;
-    protected IDisposable updateSubscription;
+    private List<ICategoryView> _categories = new();
+    private IDisposable? _updateSubscription;
 
 
     protected override async Task OnInitializedAsync()
     {
-        categories = new List<ICategoryView>();
+        _categories = new List<ICategoryView>();
         await Refresh();
 
-        updateSubscription = catManager.CategoryUpdates
+        _updateSubscription = _catManager.CategoryUpdates
             .ObserveOn(SynchronizationContext.Current!)
             .Subscribe(ReceiveUpdate);
 
     }
 
-    protected async Task Refresh()
+    private async Task Refresh()
     {
-        var current = await catManager.GetCategories();
-        categories.Clear();
-        categories.AddRange(current);
+        var current = await _catManager.GetCategories();
+        _categories.Clear();
+        _categories.AddRange(current);
         StateHasChanged();
     }
 
     private void ReceiveUpdate(ItemUpdate<ICategoryView> update)
     {
-        categories.Remove(categories.Find(c => c.Id == update.Item.Id));
+        var toRemove = _categories.Find(c => c.Id == update.Item.Id);
+        if (toRemove is not null)
+            _categories.Remove(toRemove);
+        
         if (!update.IsDelete)
         {
-            categories.Add(update.Item);
-            categories.Sort((a, b) => String.Compare(a.Name, b.Name, StringComparison.Ordinal));
+            _categories.Add(update.Item);
+            _categories.Sort((a, b) => string.Compare(a.Name, b.Name, StringComparison.Ordinal));
         }
         StateHasChanged();
     }
 
     private async void AddNewCategory()
     {
-        await catManager.AddCategory();
+        var parameters = new DialogParameters { ["ToEdit"] = null };
+        var dialog = _dialogService.Show<CategoryDialog>("Create New Category", parameters);
+        var result = await dialog.Result;
+        if (result.Cancelled) return;
+
+        var info = result.Data as CategoryDialog.Result;
+        
+        await _catManager.AddCategory(info.Name, info.Description);
 
         await Refresh();
     }
 
     private async Task DeleteCategory(ICategoryView cat)
     {
-        var result = await dialogService.ShowMessageBox("Confirm Delete Category", 
+        var result = await _dialogService.ShowMessageBox("Confirm Delete Category", 
             $"Are you sure you want to remove the category '{cat.Name}'?", 
             yesText:"Yes", noText:"No");
         
         if (result == true)
         {
-            await catManager.DeleteCategory(cat.Id);
+            await _catManager.DeleteCategory(cat.Id);
             await Refresh();
         }
     }
 
     public void Dispose()
     {
-        updateSubscription?.Dispose();
+        _updateSubscription?.Dispose();
     }
 
 }

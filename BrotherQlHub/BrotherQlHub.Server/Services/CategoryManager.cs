@@ -34,14 +34,14 @@ namespace BrotherQlHub.Server.Services
             return _categories.Values.ToArray();
         }
 
-        public async Task AddCategory()
+        public async Task AddCategory(string? name, string? description)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetService<HubContext>();
             var newCategory = new TagCategory
             {
-                Name = "New Category",
-                Description = "New category description",
+                Name = name ?? "New Category",
+                Description = description ?? "New category description",
                 Tags = new List<Tag>()
             };
             await context.Categories.AddAsync(newCategory);
