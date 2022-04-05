@@ -15,31 +15,27 @@ using Newtonsoft.Json.Serialization;
 
 namespace BrotherQlHub.Server.Services;
 
-public class PrinterMonitor : BackgroundService
+public class PrinterMonitor : IHostedService
 {
-    private IManagedMqttClient _client;
     private readonly IConfigurationSection _configSection;
     private readonly JsonSerializerSettings _jsonSettings;
 
     private readonly ConcurrentDictionary<string, PrinterViewModel> _printers;
     private readonly Subject<PrinterViewModel> _printerUpdates;
     private readonly IServiceScopeFactory _scopeFactory;
+    private readonly ILogger<PrinterMonitor> _logger;
     private List<PrinterTag> _printerTags;
 
-    public PrinterMonitor(IConfigurationSection configSection, IServiceScopeFactory scopeFactory)
+    private readonly IDisposable[] _subscriptions;
+
+    public PrinterMonitor(IEnumerable<IPrinterTransport> transports, IServiceScopeFactory scopeFactory, ILogger<PrinterMonitor> logger)
     {
         _printerUpdates = new Subject<PrinterViewModel>();
         _printers = new ConcurrentDictionary<string, PrinterViewModel>();
 
-        _configSection = configSection;
         _scopeFactory = scopeFactory;
-        _jsonSettings = new JsonSerializerSettings
-        {
-            ContractResolver = new DefaultContractResolver
-            {
-                NamingStrategy = new SnakeCaseNamingStrategy()
-            }
-        };
+        _logger = logger;
+        _subscriptions = transports.Select(t => t.Updates.Subscribe(ReceiveUpdate)).ToArray();
     }
 
     public IObservable<PrinterViewModel> PrinterUpdates => _printerUpdates.AsObservable();
@@ -49,22 +45,27 @@ public class PrinterMonitor : BackgroundService
         return _printers.Values.ToArray();
     }
 
-    public async Task<bool> PrintRequest(string printerSerial, string imageUrl)
+    private void ReceiveUpdate(PrinterUpdate update)
     {
-        if (!_printers.ContainsKey(printerSerial)) return false;
-
-        var printer = _printers[printerSerial];
-        if (!printer.IsOnline) return false;
-
-        var payload = new MqttApplicationMessageBuilder()
-            .WithTopic($"label_servers/print/{printer.Host}/{printerSerial}/url")
-            .WithPayload(imageUrl)
-            .WithExactlyOnceQoS()
-            .Build();
-        await _client.PublishAsync(payload);
-        return true;
+        _logger.LogInformation("Received update: {0}", update);
+        
+        
     }
 
+    public Task StartAsync(CancellationToken cancellationToken)
+    {
+        return Task.CompletedTask;
+    }
+
+    public Task StopAsync(CancellationToken cancellationToken)
+    {
+        foreach (var subscription in _subscriptions)
+        {
+            subscription.Dispose();
+        }
+        return Task.CompletedTask;
+    }
+    
     public async Task SetPrinterTag(string printerSerial, int selectedTag)
     {
         using var scope = _scopeFactory.CreateScope();
@@ -92,39 +93,6 @@ public class PrinterMonitor : BackgroundService
         GetTags();
     }
 
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
-    {
-        await LoadPrinters();
-
-        var options = new ManagedMqttClientOptionsBuilder()
-            .WithAutoReconnectDelay(TimeSpan.FromSeconds(5))
-            .WithClientOptions(new MqttClientOptionsBuilder()
-                .WithTcpServer(_configSection["Host"], int.Parse(_configSection["Port"]))
-                .WithTls(new MqttClientOptionsBuilderTlsParameters
-                {
-                    UseTls = true,
-                    SslProtocol = SslProtocols.Tls12
-                })
-                .WithClientId("brother_ql_hub")
-                .Build())
-            .Build();
-
-        _client = new MqttFactory().CreateManagedMqttClient();
-        _client.UseApplicationMessageReceivedHandler(MessageHandler);
-        _client.UseConnectedHandler(async e =>
-        {
-            Debug.WriteLine("Connection to MQTT broker established");
-            // The connection occurs here
-            await _client.SubscribeAsync(new MqttTopicFilterBuilder().WithTopic("label_servers/status/#").Build());
-        });
-
-        Debug.WriteLine("Attempting connection to MQTT broker...");
-        await _client.StartAsync(options);
-
-        Observable.Interval(TimeSpan.FromSeconds(5))
-            .Subscribe(_ => CheckForOffline());
-    }
-
     /// <summary>
     ///     Load the printer information from the database
     /// </summary>
@@ -144,17 +112,6 @@ public class PrinterMonitor : BackgroundService
             _printers[p.Serial] = new PrinterViewModel(p.Serial, string.Empty, string.Empty, false, lastSeen, p.Model,
                 0, string.Empty, 0, tags);
         }
-    }
-
-    private Task MessageHandler(MqttApplicationMessageReceivedEventArgs e)
-    {
-        var stringContents = Encoding.UTF8.GetString(e.ApplicationMessage.Payload);
-
-        var message = JsonConvert.DeserializeObject<HostMessage>(stringContents, _jsonSettings);
-
-        foreach (var info in message.Printers) UpdatePrinter(message.Host, message.Ip, info);
-
-        return Task.CompletedTask;
     }
 
     private void GetTags()
@@ -218,4 +175,5 @@ public class PrinterMonitor : BackgroundService
 
         _printerUpdates.OnNext(vm);
     }
+
 }

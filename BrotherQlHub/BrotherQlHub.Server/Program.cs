@@ -44,6 +44,9 @@ builder.Services.AddSingleton<SignalRPrinterClient>();
 builder.Services.AddSingleton<IPrinterTransport>(x => x.GetRequiredService<SignalRPrinterClient>());
 builder.Services.AddHostedService<SignalRPrinterClient>(x => x.GetService<SignalRPrinterClient>()!);
 
+// Printer monitor
+builder.Services.AddSingleton<PrinterMonitor>();
+builder.Services.AddHostedService<PrinterMonitor>(x => x.GetService<PrinterMonitor>()!);
 
 // Add services to the container.
 builder.Services.AddRazorPages();
