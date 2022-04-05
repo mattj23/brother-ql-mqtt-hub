@@ -1,7 +1,56 @@
 @page "/"
+@using BrotherQlHub.Server.ViewModels
 
 <PageTitle>Brother QL Printer Hub</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mt-6 mb-6">
     Printers
 </MudText>
+
+@foreach (var p in _printers.Values.OrderBy(x => x.Serial))
+{
+    <MudCard Class="mb-4">
+        <MudCardHeader>
+            <CardHeaderContent>
+                <MudText Typo="Typo.h6">@p.Serial</MudText>
+                <MudText Typo="Typo.subtitle1">@p.Model</MudText>
+            </CardHeaderContent>
+        </MudCardHeader>
+        
+        <MudCardContent>
+            <MudElement Class="d-flex align-content-start flex-wrap flex-grow-1 gap-4">
+                @if (p.IsOnline)
+                {
+                    <MudElement Class="pa-3">Online</MudElement>
+                    <MudElement Class="pa-3">Media @p.MediaType</MudElement>
+                    <MudElement Class="pa-3">@p.MediaWidth mm</MudElement>
+                    <MudElement Class="pa-3">@p.Host</MudElement>
+                    <MudElement Class="pa-3">@p.HostIp</MudElement>
+                }
+                else
+                {
+                    <MudElement Class="pa-3">
+                        Offline (last seen @p.LastSeen)
+                    </MudElement>
+                }
+            </MudElement>
+            
+            
+            @foreach (var cat in _categories.Values.OrderBy(c => c.Name))
+            {
+                <MudSelect Label="@cat.Name"
+                           T="ITagView"
+                           @bind-Value="@_tagSelections[p.Serial][cat.Id].SelectedTag"
+                           ToStringFunc="@(view => view?.Name ?? "No Selection")"
+                           Variant="Variant.Outlined">
+                    @foreach (var tag in _tagOptions[cat.Id])
+                    {
+                        <MudSelectItem Value="@tag" />
+                    }
+
+                </MudSelect>
+            }
+
+        </MudCardContent>
+    </MudCard>
+}

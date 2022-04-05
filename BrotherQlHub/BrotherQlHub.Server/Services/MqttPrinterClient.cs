@@ -20,7 +20,7 @@ public class MqttPrinterClient: BackgroundService, IPrinterTransport
     private readonly JsonSerializerSettings _jsonSettings;
     private readonly ILogger<MqttPrinterClient> _logger;
     private readonly Subject<PrinterUpdate> _updates = new();
-    private readonly ConcurrentDictionary<string, PrinterInfo> _printers = new();
+    private readonly ConcurrentDictionary<string, PrinterUpdate> _printers = new();
 
     public MqttPrinterClient(Config config, ILogger<MqttPrinterClient> logger)
     {
@@ -104,8 +104,8 @@ public class MqttPrinterClient: BackgroundService, IPrinterTransport
 
         foreach (var info in message.Printers)
         {
-            _printers[info.Serial] = info;
-            var update = new PrinterUpdate(info, this);
+            var update = new PrinterUpdate(info, this, message.Host, message.Ip);
+            _printers[info.Serial] = update;
             _updates.OnNext(update);
         }
 

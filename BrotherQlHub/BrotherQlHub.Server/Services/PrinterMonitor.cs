@@ -1,30 +1,19 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Reactive.Linq;
 using System.Reactive.Subjects;
-using System.Security.Authentication;
-using System.Text;
 using BrotherQlHub.Data;
 using BrotherQlHub.Server.ViewModels;
 using Microsoft.EntityFrameworkCore;
-using MQTTnet;
-using MQTTnet.Client.Options;
-using MQTTnet.Extensions.ManagedClient;
-using Newtonsoft.Json;
-using Newtonsoft.Json.Serialization;
 
 namespace BrotherQlHub.Server.Services;
 
 public class PrinterMonitor : IHostedService
 {
-    private readonly IConfigurationSection _configSection;
-    private readonly JsonSerializerSettings _jsonSettings;
-
     private readonly ConcurrentDictionary<string, PrinterViewModel> _printers;
     private readonly Subject<PrinterViewModel> _printerUpdates;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PrinterMonitor> _logger;
-    private List<PrinterTag> _printerTags;
+    private List<PrinterTag>? _printerTags;
 
     private readonly IDisposable[] _subscriptions;
 
@@ -49,12 +38,39 @@ public class PrinterMonitor : IHostedService
     {
         _logger.LogInformation("Received update: {0}", update);
         
+        if (_printerTags is null) GetTags();
+
+        var tags = _printerTags!.Where(t => t.PrinterSerial == update.Info.Serial)
+            .ToDictionary(p => p.TagCategoryId, p => p.TagId);
+
+        var vm = new PrinterViewModel(update.Info.Serial, update.Host, update.Ip, true, DateTime.Now, update.Info.Model,
+            update.Info.Status?.Errors ?? 0,
+            update.Info.Status?.MediaType ?? "Unknown",
+            update.Info.Status?.MediaWidth ?? 0, tags);
+
+        // If this is a new printer being observed, we should save it to the database
+        if (!_printers.ContainsKey(update.Info.Serial))
+        {
+            using var scope = _scopeFactory.CreateScope();
+            var context = scope.ServiceProvider.GetService<HubContext>();
+            context!.Printers.Add(new Printer
+            {
+                LastSeen = DateTime.Now,
+                Model = update.Info.Model,
+                Serial = update.Info.Serial
+            });
+            context.SaveChanges();
+        }
+
+        _printers[update.Info.Serial] = vm;
+
+        _printerUpdates.OnNext(vm);
         
     }
 
-    public Task StartAsync(CancellationToken cancellationToken)
+    public async Task StartAsync(CancellationToken cancellationToken)
     {
-        return Task.CompletedTask;
+        await LoadPrinters();
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
@@ -118,7 +134,7 @@ public class PrinterMonitor : IHostedService
     {
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetService<HubContext>();
-        _printerTags = context.PrinterTags.ToList();
+        _printerTags = context!.PrinterTags.ToList();
     }
 
     private void CheckForOffline()
@@ -143,37 +159,6 @@ public class PrinterMonitor : IHostedService
 
                 _printerUpdates.OnNext(vm);
             }
-    }
-
-    private void UpdatePrinter(string host, string hostIp, PrinterInfo info)
-    {
-        if (_printerTags is null) GetTags();
-
-        var tags = _printerTags.Where(t => t.PrinterSerial == info.Serial)
-            .ToDictionary(p => p.TagCategoryId, p => p.TagId);
-
-        var vm = new PrinterViewModel(info.Serial, host, hostIp, true, DateTime.Now, info.Model,
-            info.Status?.Errors ?? 0,
-            info.Status?.MediaType ?? "Unknown",
-            info.Status?.MediaWidth ?? 0, tags);
-
-        // If this is a new printer being observed, we should save it to the database
-        if (!_printers.ContainsKey(info.Serial))
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var context = scope.ServiceProvider.GetService<HubContext>();
-            context.Printers.Add(new Printer
-            {
-                LastSeen = DateTime.Now,
-                Model = info.Model,
-                Serial = info.Serial
-            });
-            context.SaveChanges();
-        }
-
-        _printers[info.Serial] = vm;
-
-        _printerUpdates.OnNext(vm);
     }
 
 }

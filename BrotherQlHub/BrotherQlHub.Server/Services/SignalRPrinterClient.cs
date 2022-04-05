@@ -5,10 +5,10 @@ using BrotherQlHub.Data;
 
 namespace BrotherQlHub.Server.Services;
 
-public class SignalRPrinterClient : IHostedService, IPrinterTransport, IObserver<PrinterInfo>
+public class SignalRPrinterClient : IHostedService, IPrinterTransport, IObserver<PrinterUpdate>
 {
     private readonly Subject<PrinterUpdate> _updates = new();
-    private readonly ConcurrentDictionary<string, PrinterInfo> _printers = new();
+    private readonly ConcurrentDictionary<string, PrinterUpdate> _printers = new();
     private readonly ILogger<SignalRPrinterClient> _logger;
 
     public SignalRPrinterClient(ILogger<SignalRPrinterClient> logger)
@@ -46,9 +46,10 @@ public class SignalRPrinterClient : IHostedService, IPrinterTransport, IObserver
     {
     }
 
-    public void OnNext(PrinterInfo value)
+    public void OnNext(PrinterUpdate value)
     {
-        _printers[value.Serial] = value;
-        _updates.OnNext(new PrinterUpdate(value, this));
+        var update = new PrinterUpdate(value.Info, this, value.Host, value.Ip);
+        _printers[value.Info.Serial] = update;
+        _updates.OnNext(update);
     }
 }

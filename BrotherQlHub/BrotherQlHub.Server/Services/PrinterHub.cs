@@ -44,7 +44,7 @@ public class PrinterHub : Hub<IPrinterClient>
 
         foreach (var info in message.Printers)
         {
-            _client.OnNext(info);
+            _client.OnNext(new PrinterUpdate(info, null, message.Host, message.Ip));
         }
 
         return Task.CompletedTask;
