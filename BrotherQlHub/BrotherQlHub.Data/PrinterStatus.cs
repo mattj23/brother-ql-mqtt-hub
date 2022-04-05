@@ -1,13 +1,9 @@
-﻿namespace BrotherQlHub.Data
-{
-    public class PrinterStatus
-    {
-        public int MediaWidth { get; set; }
-        public int MediaLength { get; set; }
-        public string MediaType { get; set; }
-        public int Errors { get; set; }
-        public string StatusType { get; set; }
-        public string Phase { get; set; }
-        public int Notification { get; set; }
-    }
-}
+﻿namespace BrotherQlHub.Data;
+
+public record PrinterStatus(int MediaWidth, int MediaLength, string MediaType, int Errors, string StatusType,
+    string Phase, int Notification);
+
+public record PrinterInfo(string Model, string Serial, PrinterStatus Status, string Host);
+
+public record PrinterUpdate(PrinterInfo Info, IPrinterTransport Transport);
+
