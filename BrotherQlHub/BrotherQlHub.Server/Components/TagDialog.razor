@@ -1,0 +1,60 @@
+﻿@using BrotherQlHub.Server.ViewModels
+<MudDialog Class="mud-dialog-width-lg">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3 mb-n1" />
+            @(ToEdit is null ? "Create New Tag" : "Edit Tag")
+        </MudText>
+    </TitleContent>
+    
+    <DialogContent>
+        <MudTextField @bind-Value="@_name" Label="Tag Name" />
+    </DialogContent>
+    
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancel</MudButton>
+        <MudButton OnClick="Confirm">Ok</MudButton>
+    </DialogActions>
+
+</MudDialog>
+
+@code {
+
+    [CascadingParameter]
+    MudDialogInstance MudDialog { get; set; } = null!;
+
+    [Parameter]
+    public ITagView? ToEdit
+    {
+        get => _toEdit;
+        set
+        {
+            _toEdit = value;
+            if (_toEdit is null)
+            {
+                _name = string.Empty;
+            }
+            else
+            {
+                _name = _toEdit.Name;
+            }
+        }
+    }
+
+    private string _name = string.Empty;
+    private ITagView? _toEdit;
+
+    private void Cancel()
+    {
+        MudDialog.Cancel();
+    }
+
+    private void Confirm()
+    {
+        if (string.IsNullOrWhiteSpace(_name)) return;
+        MudDialog.Close(new Result(_name, string.Empty));
+    }
+
+    public record Result(string Name, string Description);
+
+}

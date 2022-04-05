@@ -62,20 +62,6 @@
         }
     }
 
-    private async Task UpdateName(string newName)
-    {
-        await _categories.UpdateCategory(Category.Id, newName, Category.Description);
-
-        await Update.InvokeAsync();
-    }
-
-    private async Task UpdateDescription(string newDescription)
-    {
-        await _categories.UpdateCategory(Category.Id, Category.Name, newDescription);
-
-        await Update.InvokeAsync();
-    }
-
     private async Task UpdateTag(Tuple<int, string> info)
     {
         await _categories.UpdateTag(info.Item1, info.Item2);
@@ -85,8 +71,13 @@
 
     private async void AddNewTag()
     {
-        await _categories.AddTag(Category.Id);
+        var parameters = new DialogParameters { ["ToEdit"] = null };
+        var dialog = _dialogs.Show<TagDialog>("Create New Tag", parameters);
+        var result = await dialog.Result;
+        if (result.Cancelled) return;
 
+        var info = result.Data as TagDialog.Result;
+        await _categories.AddTag(Category.Id, info.Name);
         await Update.InvokeAsync();
     }
 

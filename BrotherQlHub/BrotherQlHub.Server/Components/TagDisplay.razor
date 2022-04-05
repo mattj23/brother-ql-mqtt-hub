@@ -1,18 +1,14 @@
 ﻿@using System.Diagnostics
+@using BrotherQlHub.Server.Services
 @using BrotherQlHub.Server.ViewModels
-@inject DialogService _dialogService
+@inject IDialogService _dialogs
+@inject CategoryManager _categories
 
-<div class="alert alert-tag alert-secondary">
-    <div>
-        <button type="button" class="close" aria-label="Close" @onclick="OnClickDelete">
-            <span aria-hidden="true">&times;</span>
-        </button>
-    </div>
-
-    <div class="mr-4">
-        <button type="button" class="btn btn-link" @onclick="ShowInlineDialog">@Tag.Name</button>
-    </div>
-</div>
+<MudChip Color="Color.Info"
+         OnClick="ShowInlineDialog"
+         OnClose="OnClickDelete">
+    @Tag.Name
+</MudChip>
 
 @code {
 
@@ -33,11 +29,12 @@
 
     async Task ShowInlineDialog()
     {
-        string newName = Tag.Name;
+        var parameters = new DialogParameters { ["ToEdit"] = Tag };
+        var dialog = _dialogs.Show<TagDialog>("Edit Tag", parameters);
+        var result = await dialog.Result;
+        if (result.Cancelled) return;
 
-        // if (result is bool b && b)
-        // {
-        //     await OnUpdateTag.InvokeAsync(Tuple.Create(Tag.Id, newName));
-        // }
+        var info = result.Data as TagDialog.Result;
+        await _categories.UpdateTag(Tag.Id, info.Name);
     }
 }

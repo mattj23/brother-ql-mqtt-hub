@@ -84,15 +84,15 @@ namespace BrotherQlHub.Server.Services
             _categorySubject.OnNext(new ItemUpdate<ICategoryView>(value, true));
         }
 
-        public async Task AddTag(int categoryId)
+        public async Task AddTag(int categoryId, string name)
         {
             using var scope = _scopeFactory.CreateScope();
             var context = scope.ServiceProvider.GetService<HubContext>();
-            var target = await context.Categories
+            var target = await context!.Categories
                 .Include(c => c.Tags)
                 .FirstAsync(c => c.Id == categoryId);
 
-            target.Tags.Add(new Tag {Name = "New Tag"});
+            target.Tags.Add(new Tag {Name = name, Description = string.Empty});
             await context.SaveChangesAsync();
 
             var view = target.ToView();
