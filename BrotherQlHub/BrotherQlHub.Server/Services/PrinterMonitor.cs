@@ -46,6 +46,7 @@ public class PrinterMonitor : IHostedService
     
     public async Task Print(string serial, byte[] bytes)
     {
+        _logger.LogDebug("Monitor has print request for {0}", serial);
         var result = _transport.TryGetValue(serial, out var transport);
         if (!result) throw new KeyNotFoundException("Printer not found");
 

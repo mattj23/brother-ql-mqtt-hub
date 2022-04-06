@@ -48,6 +48,7 @@ public class SignalRPrinterClient : IHostedService, IPrinterTransport, IObserver
         var result = _contextIds.TryGetValue(serial, out var connId);
         if (!result) throw new KeyNotFoundException();
         
+        _logger.LogDebug("Sending print request to {0} / {1}", serial, connId);
         _hubContext!.Clients.Client(connId!).SendPrintRequest(serial, 0, Convert.ToBase64String(pngData));
         return Task.CompletedTask;
     }

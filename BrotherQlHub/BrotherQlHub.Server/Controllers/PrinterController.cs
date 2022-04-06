@@ -9,11 +9,13 @@ public class PrinterController : ControllerBase
 {
     private readonly PrinterMonitor _printers;
     private readonly CategoryManager _categories;
+    private readonly ILogger<PrinterController> _logger;
 
-    public PrinterController(PrinterMonitor printers, CategoryManager categories)
+    public PrinterController(PrinterMonitor printers, CategoryManager categories, ILogger<PrinterController> logger)
     {
         _printers = printers;
         _categories = categories;
+        _logger = logger;
     }
 
     public async Task<IActionResult> Index()
@@ -60,6 +62,7 @@ public class PrinterController : ControllerBase
     [HttpPost("{handle}/png")]
     public async Task<IActionResult> PrintUrl(string handle, IFormFile file)
     {
+        _logger.LogDebug("Received print request for {0}", handle);
         await using var stream = new MemoryStream();
         await file.CopyToAsync(stream);
         var bytes = stream.ToArray();
