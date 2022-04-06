@@ -1,15 +1,20 @@
-FROM mcr.microsoft.com/dotnet/sdk:5.0 AS build-env
-
-# Copy csproj and restore as distinct layers
-COPY BrotherQlMqttHub/ /app/BrotherQlMqttHub/
-WORKDIR /app/BrotherQlMqttHub
-RUN dotnet restore
-
-# Copy everything else and build
-RUN dotnet publish -c Release -o out
-
-# Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:5.0
+FROM mcr.microsoft.com/dotnet/aspnet:6.0 AS base
 WORKDIR /app
-COPY --from=build-env /app/BrotherQlMqttHub/out .
-ENTRYPOINT ["dotnet", "BrotherQlMqttHub.dll"]
+EXPOSE 80
+EXPOSE 443
+
+FROM mcr.microsoft.com/dotnet/sdk:6.0 AS build
+WORKDIR /src
+COPY ["BrotherQlHub/", "."]
+RUN dotnet restore "BrotherQlHub.Server/BrotherQlHub.Server.csproj"
+COPY . .
+WORKDIR "/src/BrotherQlHub.Server"
+RUN dotnet build "BrotherQlHub.Server.csproj" -c Release -o /app/build
+
+FROM build AS publish
+RUN dotnet publish "BrotherQlHub.Server.csproj" -c Release -o /app/publish
+
+FROM base AS final
+WORKDIR /app
+COPY --from=publish /app/publish .
+ENTRYPOINT ["dotnet", "BrotherQlHub.Server.dll"]
