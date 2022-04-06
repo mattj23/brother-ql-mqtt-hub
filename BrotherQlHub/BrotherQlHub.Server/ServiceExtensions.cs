@@ -19,11 +19,11 @@ public static class ServiceExtensions
             //     services.AddDbContext<HubContext>(o => o.UseNpgsql(connectionString,
             //         x => x.MigrationsAssembly("BrotherQlHub.Migrations.PostgreSQL")));
             //     break;
-            // case "mysql":
-            //     services.AddDbContext<HubContext>(o => o.UseMySql(connectionString,
-            //         ServerVersion.AutoDetect(connectionString), 
-            //         x => x.MigrationsAssembly("BrotherQlHub.Migrations.MySQL")));
-            //     break;
+            case "mysql":
+                services.AddDbContext<HubContext>(o => o.UseMySql(connectionString,
+                    ServerVersion.AutoDetect(connectionString), 
+                    x => x.MigrationsAssembly("BrotherQlHub.Migrations.MySQL")));
+                break;
             default:
                 throw new NotSupportedException($"No database provider found for type={typeName}");
         }

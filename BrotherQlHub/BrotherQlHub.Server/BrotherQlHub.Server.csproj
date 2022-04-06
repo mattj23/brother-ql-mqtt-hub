@@ -17,6 +17,7 @@
 
     <ItemGroup>
       <ProjectReference Include="..\BrotherQlHub.Data\BrotherQlHub.Data.csproj" />
+      <ProjectReference Include="..\BrotherQlHub.Migrations.Mysql\BrotherQlHub.Migrations.Mysql.csproj" />
       <ProjectReference Include="..\BrotherQlHub.Migrations.Sqlite\BrotherQlHub.Migrations.Sqlite.csproj" />
     </ItemGroup>
 
