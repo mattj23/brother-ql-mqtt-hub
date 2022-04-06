@@ -9,7 +9,7 @@ namespace BrotherQlHub.Server.Services;
 
 public interface IPrinterClient
 {
-    
+    Task SendPrintRequest(string serial, int mode, string payload);
 }
 
 public class PrinterHub : Hub<IPrinterClient>
@@ -17,7 +17,7 @@ public class PrinterHub : Hub<IPrinterClient>
     private readonly ILogger<PrinterHub> _logger;
     private readonly SignalRPrinterClient _client;
     private readonly JsonSerializerSettings _jsonSettings;
-    
+
     public PrinterHub(ILogger<PrinterHub> logger, SignalRPrinterClient client)
     {
         _logger = logger;
@@ -33,8 +33,6 @@ public class PrinterHub : Hub<IPrinterClient>
 
     public Task ReceivePrinterInfo(string payload)
     {
-        _logger.LogInformation(payload);
-        
         var message = JsonConvert.DeserializeObject<HostMessage>(payload, _jsonSettings);
         if (message is null)
         {
@@ -44,7 +42,8 @@ public class PrinterHub : Hub<IPrinterClient>
 
         foreach (var info in message.Printers)
         {
-            _client.OnNext(new PrinterUpdate(info, null, message.Host, message.Ip));
+            var update = new PrinterUpdate(info, null, message.Host, message.Ip);
+            _client.OnNext(Tuple.Create(Context.ConnectionId, update));
         }
 
         return Task.CompletedTask;

@@ -10,12 +10,14 @@ namespace BrotherQlHub.Server.Services;
 public class PrinterMonitor : IHostedService
 {
     private readonly ConcurrentDictionary<string, PrinterViewModel> _printers;
+    private readonly ConcurrentDictionary<string, IPrinterTransport> _transport = new();
     private readonly Subject<PrinterViewModel> _printerUpdates;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<PrinterMonitor> _logger;
     private List<PrinterTag>? _printerTags;
 
     private readonly IDisposable[] _subscriptions;
+    private IDisposable? _offlineCheck;
 
     public PrinterMonitor(IEnumerable<IPrinterTransport> transports, IServiceScopeFactory scopeFactory, ILogger<PrinterMonitor> logger)
     {
@@ -34,10 +36,24 @@ public class PrinterMonitor : IHostedService
         return _printers.Values.ToArray();
     }
 
+    public async Task Print(string serial, string url)
+    {
+        var result = _transport.TryGetValue(serial, out var transport);
+        if (!result) throw new KeyNotFoundException("Printer not found");
+
+        await transport!.Print(serial, url);
+    }
+    
+    public async Task Print(string serial, byte[] bytes)
+    {
+        var result = _transport.TryGetValue(serial, out var transport);
+        if (!result) throw new KeyNotFoundException("Printer not found");
+
+        await transport!.Print(serial, bytes);
+    }
+
     private void ReceiveUpdate(PrinterUpdate update)
     {
-        _logger.LogInformation("Received update: {0}", update);
-        
         if (_printerTags is null) GetTags();
 
         var tags = _printerTags!.Where(t => t.PrinterSerial == update.Info.Serial)
@@ -62,6 +78,7 @@ public class PrinterMonitor : IHostedService
             context.SaveChanges();
         }
 
+        _transport[update.Info.Serial] = update.Transport!;
         _printers[update.Info.Serial] = vm;
 
         _printerUpdates.OnNext(vm);
@@ -70,6 +87,8 @@ public class PrinterMonitor : IHostedService
 
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        _offlineCheck = Observable.Interval(TimeSpan.FromSeconds(5))
+            .Subscribe(_ => CheckForOffline());
         await LoadPrinters();
     }
 
@@ -79,6 +98,7 @@ public class PrinterMonitor : IHostedService
         {
             subscription.Dispose();
         }
+        _offlineCheck?.Dispose();
         return Task.CompletedTask;
     }
     
@@ -157,6 +177,7 @@ public class PrinterMonitor : IHostedService
                 var vm = new PrinterViewModel(p.Serial, p.Host, p.HostIp, false, p.LastSeen, p.Model, p.Errors,
                     p.MediaType, p.MediaWidth, tags);
 
+                _printers[vm.Serial] = vm;
                 _printerUpdates.OnNext(vm);
             }
     }

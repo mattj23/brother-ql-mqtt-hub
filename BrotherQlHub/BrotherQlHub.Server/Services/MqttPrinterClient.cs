@@ -37,12 +37,12 @@ public class MqttPrinterClient: BackgroundService, IPrinterTransport
 
     public IObservable<PrinterUpdate> Updates => _updates.AsObservable();
     
-    public Task<bool> Print(string serial, string imageUrl)
+    public Task Print(string serial, string imageUrl)
     {
         throw new NotImplementedException();
     }
 
-    public Task<bool> Print(string serial, byte[] pngData)
+    public Task Print(string serial, byte[] pngData)
     {
         throw new NotImplementedException();
     }
