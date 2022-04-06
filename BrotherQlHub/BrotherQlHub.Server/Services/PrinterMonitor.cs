@@ -54,6 +54,8 @@ public class PrinterMonitor : IHostedService
 
     private void ReceiveUpdate(PrinterUpdate update)
     {
+        _logger.LogDebug("Received printer update: {0}", update);
+        
         if (_printerTags is null) GetTags();
 
         var tags = _printerTags!.Where(t => t.PrinterSerial == update.Info.Serial)

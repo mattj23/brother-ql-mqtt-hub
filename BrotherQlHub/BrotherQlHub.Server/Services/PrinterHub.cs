@@ -33,6 +33,7 @@ public class PrinterHub : Hub<IPrinterClient>
 
     public Task ReceivePrinterInfo(string payload)
     {
+        _logger.LogDebug("Received SignalR payload: {0}", payload);
         var message = JsonConvert.DeserializeObject<HostMessage>(payload, _jsonSettings);
         if (message is null)
         {
@@ -44,6 +45,7 @@ public class PrinterHub : Hub<IPrinterClient>
         {
             var update = new PrinterUpdate(info, null, message.Host, message.Ip);
             _client.OnNext(Tuple.Create(Context.ConnectionId, update));
+            _logger.LogDebug("Received printer update: {0}", update);
         }
 
         return Task.CompletedTask;

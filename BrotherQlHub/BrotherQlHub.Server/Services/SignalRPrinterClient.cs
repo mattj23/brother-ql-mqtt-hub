@@ -62,6 +62,7 @@ public class SignalRPrinterClient : IHostedService, IPrinterTransport, IObserver
 
     public void OnNext(Tuple<string, PrinterUpdate> value)
     {
+        _logger.LogDebug("Received printer update: {0}", value);
         var update = new PrinterUpdate(value.Item2.Info, this, value.Item2.Host, value.Item2.Ip);
         _contextIds[value.Item2.Info.Serial] = value.Item1;
         _printers[value.Item2.Info.Serial] = update;
