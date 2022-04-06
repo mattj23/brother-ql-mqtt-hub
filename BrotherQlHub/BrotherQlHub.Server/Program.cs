@@ -59,6 +59,15 @@ builder.Services.AddControllers();
 var app = builder.Build();
 app.ApplyMigrations();
 
+var pathBase = Environment.GetEnvironmentVariable("PATH_BASE");
+if (!string.IsNullOrEmpty(pathBase))
+{
+    logger.LogInformation($"Using pathbase middleware: {pathBase}");
+    app.UsePathBase(pathBase);
+}
+
+app.UseForwardedHeaders();
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -67,13 +76,23 @@ if (!app.Environment.IsDevelopment())
     app.UseHsts();
 }
 
-app.UseHttpsRedirection();
+var logging = Environment.GetEnvironmentVariable("HTTP_LOGGING");
+if (logging?.ToLower() == "true")
+{
+    logger.LogInformation("Using HTTP logging");
+    app.UseHttpLogging();
+}
+
+var httpsRedirect = Environment.GetEnvironmentVariable("HTTPS_REDIRECT");
+if (httpsRedirect?.ToLower() == "true")
+{
+    logger.LogInformation("Using HTTPS redirect");
+    app.UseHttpsRedirection();
+}
 
 app.UseStaticFiles();
-
 app.UseRouting();
 app.UseCors("CorsPolicy");
-
 app.MapHub<PrinterHub>("/printer");
 app.MapBlazorHub();
 app.MapControllers();
